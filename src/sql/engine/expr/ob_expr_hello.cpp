@@ -15,7 +15,7 @@ namespace oceanbase {
 namespace sql {
 
 ////////////////////////////////////////////////////////////////
-const char ObExprHello::hello_world[] = "Hello, World!";
+const char ObExprHello::hello_world[] = "Hello, OceanBase Competition!";
 const int64_t ObExprHello::hello_len = sizeof(hello_world) - 1;
 ObExprHello::ObExprHello(common::ObIAllocator& alloc)
     :ObStringExprOperator(alloc, T_FUN_SYS_HELLO, "hello", 0, NOT_VALID_FOR_GENERATED_COL)
