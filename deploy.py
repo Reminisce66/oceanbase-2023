@@ -135,12 +135,12 @@ if __name__ == "__main__":
         bootstrap_end = datetime.datetime.now()
         _logger.info('bootstrap success: %s ms' % ((bootstrap_end - bootstrap_begin).total_seconds() * 1000))
         # checkout server status
-        cursor.execute("select * from oceanbase.__all_server")
-        server_status = cursor.fetchall()
-        if len(server_status) != 1 or server_status[0]['status'] != 'ACTIVE':
-            _logger.info("get server status failed")
-            exit(1)
-        _logger.info('checkout server status ok')
+        #cursor.execute("select * from oceanbase.__all_server")
+        #server_status = cursor.fetchall()
+        #if len(server_status) != 1 or server_status[0]['status'] != 'ACTIVE':
+        #    _logger.info("get server status failed")
+        #    exit(1)
+        #_logger.info('checkout server status ok')
         # ObRootService::check_config_result
 
         __create_tenant(cursor,

@@ -240,33 +240,36 @@ int ObPreBootstrap::prepare_bootstrap(ObAddr &master_rs)
   int ret = OB_SUCCESS;
   bool is_empty = false;
   bool match = false;
+
   begin_ts_ = ObTimeUtility::current_time();
+  int64_t my_begin_ts=begin_ts_;
   if (OB_FAIL(check_inner_stat())) {
     LOG_WARN("check_inner_stat failed", KR(ret));
   } else if (OB_FAIL(check_bootstrap_rs_list(rs_list_))) {
     LOG_WARN("failed to check_bootstrap_rs_list", KR(ret), K_(rs_list));
-  } else if (OB_FAIL(check_all_server_bootstrap_mode_match(match))) {
+  } else if (OB_FAIL(check_all_server_bootstrap_mode_match(match))) {//2.1
     LOG_WARN("fail to check all server bootstrap mode match", KR(ret));
   } else if (!match) {
     ret = OB_NOT_SUPPORTED;
     LOG_WARN("cannot do bootstrap with different bootstrap mode on servers", KR(ret));
-  } else if (OB_FAIL(check_is_all_server_empty(is_empty))) {
+  } else if (OB_FAIL(check_is_all_server_empty(is_empty))) {//2.2
     LOG_WARN("failed to check bootstrap stat", KR(ret));
   } else if (!is_empty) {
     ret = OB_INIT_TWICE;
     LOG_WARN("cannot do bootstrap on not empty server", KR(ret));
   } else if (OB_FAIL(notify_sys_tenant_root_key())) {
     LOG_WARN("fail to notify sys tenant root key", KR(ret));
-  } else if (OB_FAIL(notify_sys_tenant_server_unit_resource())) {
+  } else if (OB_FAIL(notify_sys_tenant_server_unit_resource())) {//2.3
     LOG_WARN("fail to notify sys tenant server unit resource", KR(ret));
-  } else if (OB_FAIL(notify_sys_tenant_config_())) {
+  } else if (OB_FAIL(notify_sys_tenant_config_())) {//2.4
     LOG_WARN("fail to notify sys tenant config", KR(ret));
-  } else if (OB_FAIL(create_ls())) {
+  } else if (OB_FAIL(create_ls())) {//2.5
     LOG_WARN("failed to create core table partition", KR(ret));
-  } else if (OB_FAIL(wait_elect_ls(master_rs))) {
+  } else if (OB_FAIL(wait_elect_ls(master_rs))) {//2.6
     LOG_WARN("failed to wait elect master partition", KR(ret));
   }
-  BOOTSTRAP_CHECK_SUCCESS();
+  begin_ts_=my_begin_ts;
+  BOOTSTRAP_CHECK_SUCCESS();//2.7
   return ret;
 }
 
@@ -552,7 +555,7 @@ int ObBootstrap::execute_bootstrap(rootserver::ObServerZoneOpService &server_zon
   bool already_bootstrap = true;
   ObSArray<ObTableSchema> table_schemas;
   begin_ts_ = ObTimeUtility::current_time();
-
+  int64_t my_begin_ts=begin_ts_;
   BOOTSTRAP_LOG(INFO, "start do execute_bootstrap");
 
   if (OB_FAIL(check_inner_stat())) {
@@ -598,7 +601,7 @@ int ObBootstrap::execute_bootstrap(rootserver::ObServerZoneOpService &server_zon
   } else {
     ROOTSERVICE_EVENT_ADD("bootstrap", "bootstrap_succeed");
   }
-
+  begin_ts_=my_begin_ts;
   BOOTSTRAP_CHECK_SUCCESS();
   return ret;
 }
