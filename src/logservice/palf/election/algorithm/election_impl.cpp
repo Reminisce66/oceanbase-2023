@@ -27,7 +27,7 @@ namespace palf
 namespace election
 {
 
-int64_t MAX_TST = 1_s;
+int64_t MAX_TST = 20_ms;
 int64_t INIT_TS = -1;
 ObOccamTimer GLOBAL_REPORT_TIMER;
 
@@ -219,6 +219,7 @@ void ElectionImpl::handle_message_base_(const ElectionMsgBase &message_base)
 
 int ElectionImpl::handle_message(const ElectionPrepareRequestMsg &msg)
 {
+  ELECT_LOG(INFO, "handle_message ElectionPrepareRequestMsg ", K(*this));
   const_cast<ElectionPrepareRequestMsg &>(msg).set_process_ts();
   ELECT_TIME_GUARD(500_ms);
   #define PRINT_WRAPPER KR(ret), K(*this), K(msg), K(need_register_devote_task)
@@ -245,6 +246,7 @@ int ElectionImpl::handle_message(const ElectionPrepareRequestMsg &msg)
 
 int ElectionImpl::handle_message(const ElectionAcceptRequestMsg &msg)
 {
+  ELECT_LOG(INFO, "handle_message ElectionAcceptRequestMsg ", K(*this));
   const_cast<ElectionAcceptRequestMsg &>(msg).set_process_ts();
   ELECT_TIME_GUARD(500_ms);
   #define PRINT_WRAPPER KR(ret), K(msg), K(us_to_expired)
@@ -276,6 +278,7 @@ int ElectionImpl::handle_message(const ElectionAcceptRequestMsg &msg)
 
 int ElectionImpl::handle_message(const ElectionPrepareResponseMsg &msg)
 {
+  ELECT_LOG(INFO, "handle_message ElectionPrepareResponseMsg ", K(*this));
   const_cast<ElectionPrepareResponseMsg &>(msg).set_process_ts();
   ELECT_TIME_GUARD(500_ms);
   int ret = OB_SUCCESS;
@@ -289,6 +292,7 @@ int ElectionImpl::handle_message(const ElectionPrepareResponseMsg &msg)
 
 int ElectionImpl::handle_message(const ElectionAcceptResponseMsg &msg)
 {
+  ELECT_LOG(INFO, "handle_message ElectionAcceptResponseMsg ", K(*this));
   const_cast<ElectionAcceptResponseMsg &>(msg).set_process_ts();
   ELECT_TIME_GUARD(500_ms);
   int ret = OB_SUCCESS;
@@ -302,6 +306,7 @@ int ElectionImpl::handle_message(const ElectionAcceptResponseMsg &msg)
 
 int ElectionImpl::handle_message(const ElectionChangeLeaderMsg &msg)
 {
+  ELECT_LOG(INFO, "handle_message ElectionChangeLeaderMsg ", K(*this));
   const_cast<ElectionChangeLeaderMsg &>(msg).set_process_ts();
   ELECT_TIME_GUARD(500_ms);
   int ret = OB_SUCCESS;
