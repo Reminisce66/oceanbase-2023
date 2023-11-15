@@ -1902,7 +1902,7 @@ int ObInnerSQLConnection::set_timeout(int64_t &abs_timeout_us)
 
   if (OB_SUCC(ret)) {
     if (0 == abs_timeout_us) {
-      timeout = (user_timeout_ > 0) ? user_timeout_ : GCONF.internal_sql_execute_timeout;
+      timeout = (user_timeout_ > 0 && user_timeout_<GCONF.internal_sql_execute_timeout) ? user_timeout_ : GCONF.internal_sql_execute_timeout;
       trx_timeout = timeout;
       abs_timeout_us = now + timeout;
     }

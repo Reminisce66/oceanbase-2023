@@ -62,11 +62,9 @@ int ObCommonSqlProxy::read(ReadResult &result, const uint64_t tenant_id, const c
   ObISQLConnection *conn = NULL;
   if (OB_FAIL(acquire(tenant_id, conn, group_id))) {
     LOG_WARN("acquire connection failed", K(ret), K(conn));
-  } else{
-      conn->set_user_timeout(3_s);
-      if (OB_FAIL(read(conn, result, tenant_id, sql))) {
-          LOG_WARN("read failed", K(ret));
-      }}
+  } else if (OB_FAIL(read(conn, result, tenant_id, sql))) {
+      LOG_WARN("read failed", K(ret));
+  }
 
   close(conn, ret);
   return ret;
