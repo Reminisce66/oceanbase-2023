@@ -196,7 +196,7 @@ int ObCreateTenantExecutor::wait_user_ls_valid_(const uint64_t tenant_id)
       if (OB_FAIL(ret)) {
       } else if (user_ls_valid) {
       } else {
-        const int64_t INTERVAL = 500 * 1000L; // 500ms
+        const int64_t INTERVAL = 200 * 1000L; // 500ms
         LOG_INFO("wait user ls valid", KR(ret), K(tenant_id));
         ob_usleep(INTERVAL);
       }
