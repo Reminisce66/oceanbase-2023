@@ -143,7 +143,7 @@ if __name__ == "__main__":
     shell_result = subprocess.run(observer_cmd, shell=True)
     _logger.info('deploy done. returncode=%d', shell_result.returncode)
 
-    time.sleep(2)
+    #time.sleep(2)
     observer_bin_path = __observer_bin_path(home_abs_path)
     pid = subprocess.getoutput(f'pidof {observer_bin_path}')
     shell_result = subprocess.run(f"sudo perf record -F 99  -g  -p {pid} -- sleep 90 &", shell=True)

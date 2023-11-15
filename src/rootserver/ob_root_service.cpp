@@ -1859,6 +1859,7 @@ int ObRootService::after_restart()
 
   // avoid concurrent with bootstrap
   FLOG_INFO("[ROOTSERVICE_NOTICE] try to get lock for bootstrap in after_restart");
+  //usleep(500000);
   ObLatchRGuard guard(bootstrap_lock_, ObLatchIds::RS_BOOTSTRAP_LOCK);
 
   // NOTE: Following log print after lock
@@ -2023,7 +2024,7 @@ int ObRootService::execute_bootstrap(const obrpc::ObBootstrapArg &arg)
     }
     ret = OB_SUCC(ret) ? tmp_ret : ret;
   }
-  BOOTSTRAP_LOG(INFO, "execute_bootstrap finished", K(ret));
+  BOOTSTRAP_LOG(INFO, "execute_bootstrap finished", K(ret));//cost 5s
   return ret;
 }
 
@@ -5005,7 +5006,7 @@ int ObRootService::do_restart()
       FLOG_WARN("failed to update rslist but ignored", KR(tmp_ret));
     }
   }
-
+  FLOG_INFO("[ROOTSERVICE_NOTICE] start do_restart load_refresh_schema_status");
   if (OB_SUCC(ret)) {
     //standby cluster trigger load_refresh_schema_status by heartbeat.
     //due to switchover, primary cluster need to load schema_status too.

@@ -1165,7 +1165,7 @@ void ObQueryRetryCtrl::test_and_save_retry_state(const ObGlobalContext &gctx,
       func(retry_param);
     }
     // always execute after func hook to set some states
-    ObQueryRetryCtrl::after_func(retry_param);
+    ObQueryRetryCtrl::after_func(retry_param);//after_func
   }
   if (RETRY_TYPE_NONE != retry_type_) {
     // this retry times only apply to current thread retry.
