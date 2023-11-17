@@ -551,6 +551,7 @@ int myThreadPool::push(void *task)
     } else {
 
         ret = queue_.push(task);
+        LOG_WARN("task addr 2",K((int64_t)task));
         LOG_WARN("push sucess");
         if (OB_SIZE_OVERFLOW == ret) {
             ret = OB_EAGAIN;
@@ -567,12 +568,14 @@ void myThreadPool::run1(){
         void *task = NULL;
         if (OB_SUCC(queue_.pop(task, QUEUE_WAIT_TIME))) {
             LOG_WARN("access task");
+            LOG_WARN("task addr",K((int64_t)task));
             handle(task);
-            task_nums_--;
-            if(task_nums_==0){
-                is_finish_=true;
-                //trans_.end(true);
-            }
+            ATOMIC_DEC(&task_nums_);
+            LOG_WARN("task_nums_",K(task_nums_));
+        }
+        if(ATOMIC_LOAD(&task_nums_)==0){
+            is_finish_=true;
+            //trans_.end(true);
         }
     }
 
@@ -612,7 +615,7 @@ int myThreadPool::batch_create_schema(ObDDLService &ddl_service,
 {
     int ret = OB_SUCCESS;
     const int64_t begin_time = ObTimeUtility::current_time();
-    ObDDLSQLTransaction trans(&(ddl_service.get_schema_service()), true, true, false, false);
+    ObDDLSQLTransaction trans(&(ddl_service.get_schema_service()), true, true, true, false);
     if (begin < 0 || begin >= end || end > table_schemas.count()) {
         ret = OB_INVALID_ARGUMENT;
         LOG_WARN("invalid argument", K(ret), K(begin), K(end),
@@ -1145,21 +1148,26 @@ int ObBootstrap::create_all_schema(ObDDLService &ddl_service,
     }
 
     myThreadPool pool(is_finish,ddl_service,table_schemas,task_num);
-    if(OB_FAIL(pool.init(1,1000,"create_schema"))) {
+    if(OB_FAIL(pool.init(8,1000,"create_schema"))) {
         LOG_WARN("pool init failed", K(ret));
     }
     if(OB_FAIL(pool.start())){
         LOG_WARN("pool start failed", K(ret));
     }
-    std::vector<CreateSchemaTask>tasks;
+    CreateSchemaTask tasks [task_num];
+    int task_number=0;
     const int64_t MAX_RETRY_TIMES = 3;
     for (int64_t i = 0; OB_SUCC(ret) && i < table_schemas.count(); ++i) {
       if (table_schemas.count() == (i + 1) || (i + 1 - begin) >= batch_count) {
-          CreateSchemaTask task(begin,i+1);
-          tasks.push_back(task);
-          if(OB_FAIL(pool.push((void*)&tasks[tasks.size()-1]))){
+          //CreateSchemaTask task(begin,i+1);
+          //LOG_WARN("task spec 1",K(task.start_),K(task.end_));
+          tasks[task_number].set(begin,i+1);
+          LOG_WARN("task spec 1",K(tasks[task_number].start_),K(tasks[task_number].end_));
+          LOG_WARN("task addr 1",K((int64_t)(&tasks[task_number])));
+          if(OB_FAIL(pool.push((void*)&tasks[task_number]))){
               LOG_WARN("pool task failed", K(ret));
           }
+          task_number++;
         /*int64_t retry_times = 1;
         while (OB_SUCC(ret)) {
           if (OB_FAIL(batch_create_schema(ddl_service, table_schemas, begin, i + 1))) {
