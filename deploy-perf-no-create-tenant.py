@@ -107,15 +107,14 @@ if __name__ == "__main__":
     parser.add_argument("-c", dest="cluster_id", type=str, default="1")
     parser.add_argument("-i", dest="devname", type=str, default="lo")
     parser.add_argument("-I", dest="ip", type=str, default="127.0.0.1")
-    parser.add_argument("-o", dest="opt_str", type=str,
-                        default="__min_full_resource_pool_memory=1073741824,datafile_size=60G,datafile_next=20G,datafile_maxsize=100G,log_disk_size=40G,memory_limit=10G,system_memory=1G,cpu_count=24,cache_wash_threshold=1G,workers_per_cpu_quota=10,schema_history_expire_time=1d,net_thread_count=4,syslog_io_bandwidth_limit=10G")
+    parser.add_argument("-o", dest="opt_str", type=str, default="__min_full_resource_pool_memory=1073741824,datafile_size=2G,datafile_next=2G,datafile_maxsize=8G,log_disk_size=40G,memory_limit=10G,system_memory=1G,cpu_count=10,cache_wash_threshold=1G,workers_per_cpu_quota=10,schema_history_expire_time=1d,net_thread_count=4,syslog_io_bandwidth_limit=10G")
 
     tenant_group = parser.add_argument_group('tenant', 'tenant options')
     tenant_group.add_argument('--tenant-name', dest='tenant_name', type=str, default='test')
     tenant_group.add_argument('--tenant-resource-pool-name', dest='tenant_resource_pool_name', type=str,
                               default='test_pool')
     tenant_group.add_argument('--tenant-unit-name', dest='tenant_unit_name', type=str, default='test_unit')
-    tenant_group.add_argument('--tenant-cpu', dest='tenant_cpu', type=str, default='18')
+    tenant_group.add_argument('--tenant-cpu', dest='tenant_cpu', type=str, default='8')
     tenant_group.add_argument('--tenant-memory', dest='tenant_memory', type=str, default='8589934592')
 
     args = parser.parse_args()
@@ -140,7 +139,8 @@ if __name__ == "__main__":
     os.chdir(args.cluster_home_path)
     observer_cmd = f"{bin_abs_path} {observer_args}"
     _logger.info(observer_cmd)
-    shell_result = subprocess.run(observer_cmd, shell=True)
+    # shell_result = subprocess.run(observer_cmd, shell=True)
+    shell_result = subprocess.Popen(observer_cmd, shell=True)
     _logger.info('deploy done. returncode=%d', shell_result.returncode)
 
     time.sleep(2)

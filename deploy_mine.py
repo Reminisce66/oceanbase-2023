@@ -8,33 +8,27 @@ import sys
 import shutil
 import logging
 import traceback
-import psutil
 
 _logger = logging.getLogger('DeployDemo')
-
 
 def param_check(args):
     # TODO
     return True
 
-
-def __data_path(cluster_home_path: str) -> str:
+def __data_path(cluster_home_path:str) -> str:
     return os.path.join(cluster_home_path, 'store')
 
-
-def __observer_bin_path(cluster_home_path: str) -> str:
+def __observer_bin_path(cluster_home_path:str) -> str:
     return os.path.join(cluster_home_path, 'bin', 'observer')
 
-
-def __build_env(cluster_home_path: str) -> None:
+def __build_env(cluster_home_path:str) -> None:
     paths_to_create = ['clog', 'sstable', 'slog']
     data_path = __data_path(cluster_home_path)
     for path in paths_to_create:
         path_to_create = os.path.join(data_path, path)
         os.makedirs(path_to_create, exist_ok=True)
 
-
-def __clear_env(cluster_home_path: str) -> None:
+def __clear_env(cluster_home_path:str) -> None:
     observer_bin_path = __observer_bin_path(cluster_home_path)
     pid = subprocess.getoutput(f'pidof {observer_bin_path}')
     if pid:
@@ -44,16 +38,8 @@ def __clear_env(cluster_home_path: str) -> None:
     for path in paths_to_clear:
         path_to_clear = os.path.join(cluster_home_path, path)
         shutil.rmtree(path_to_clear, ignore_errors=True)
-def __kill_observer(cluster_home_path: str) -> None:
-    observer_bin_path = __observer_bin_path(cluster_home_path)
-    pid = subprocess.getoutput(f'pidof {observer_bin_path}')
-    if pid:
-        subprocess.run(f'kill -9 {pid}', shell=True)
 
-
-
-
-def __try_to_connect(host, mysql_port: int, *, timeout_seconds=60):
+def __try_to_connect(host, mysql_port:int, *, timeout_seconds=60):
     error_return = None
     for _ in range(0, timeout_seconds):
         try:
@@ -65,14 +51,13 @@ def __try_to_connect(host, mysql_port: int, *, timeout_seconds=60):
     _logger.info('failed to connect to observer fater %f seconds', timeout_seconds)
     raise error_return
 
-
 def __create_tenant(cursor, *,
-                    cpu: int,
-                    memory_size: int,
-                    unit_name: str = 'test_unit',
-                    resource_pool_name: str = 'test_pool',
-                    zone_name: str = 'zone1',
-                    tenant_name: str = 'test') -> None:
+                    cpu:int,
+                    memory_size:int,
+                    unit_name:str='test_unit',
+                    resource_pool_name:str='test_pool',
+                    zone_name:str='zone1',
+                    tenant_name:str='test') -> None:
     create_unit_sql = f'CREATE RESOURCE UNIT {unit_name} max_cpu={cpu},min_cpu={cpu}, memory_size={memory_size};'
     create_resource_pool_sql = f"CREATE RESOURCE POOL {resource_pool_name} unit='{unit_name}', unit_num=1,ZONE_LIST=('{zone_name}');"
     create_tenant_sql = f"CREATE TENANT IF NOT EXISTS {tenant_name} resource_pool_list = ('{resource_pool_name}') set ob_tcp_invited_nodes = '%';"
@@ -90,16 +75,14 @@ def __create_tenant(cursor, *,
 if __name__ == "__main__":
     log_level = logging.INFO
     log_format = "%(asctime)s.%(msecs)03d [%(levelname)-5s] - %(message)s " \
-                 "(%(name)s [%(funcName)s@%(filename)s:%(lineno)s] [%(threadName)s] P:%(process)d T:%(thread)d)"
+                "(%(name)s [%(funcName)s@%(filename)s:%(lineno)s] [%(threadName)s] P:%(process)d T:%(thread)d)"
     log_date_format = "%Y-%m-%d %H:%M:%S"
 
     logging.basicConfig(format=log_format, level=log_level, datefmt=log_date_format, stream=sys.stdout)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--cluster-home-path", dest='cluster_home_path', type=str,
-                        help="the path of sys log / config file / sql.sock / audit info")
-    parser.add_argument("--only_build_env", action='store_true',
-                        help="build env & start observer without bootstrap and basic check")
+    parser.add_argument("--cluster-home-path", dest='cluster_home_path', type=str, help="the path of sys log / config file / sql.sock / audit info")
+    parser.add_argument("--only_build_env", action='store_true', help="build env & start observer without bootstrap and basic check")
     parser.add_argument('--clean', action='store_true', help='clean deploy directory and exit')
     parser.add_argument("-p", dest="mysql_port", type=str, default="2881")
     parser.add_argument("-P", dest="rpc_port", type=str, default="2882")
@@ -111,8 +94,7 @@ if __name__ == "__main__":
 
     tenant_group = parser.add_argument_group('tenant', 'tenant options')
     tenant_group.add_argument('--tenant-name', dest='tenant_name', type=str, default='test')
-    tenant_group.add_argument('--tenant-resource-pool-name', dest='tenant_resource_pool_name', type=str,
-                              default='test_pool')
+    tenant_group.add_argument('--tenant-resource-pool-name', dest='tenant_resource_pool_name', type=str, default='test_pool')
     tenant_group.add_argument('--tenant-unit-name', dest='tenant_unit_name', type=str, default='test_unit')
     tenant_group.add_argument('--tenant-cpu', dest='tenant_cpu', type=str, default='8')
     tenant_group.add_argument('--tenant-memory', dest='tenant_memory', type=str, default='8589934592')
@@ -144,10 +126,6 @@ if __name__ == "__main__":
     _logger.info('deploy done. returncode=%d', shell_result.returncode)
 
     time.sleep(2)
-    observer_bin_path = __observer_bin_path(home_abs_path)
-    pid = subprocess.getoutput(f'pidof {observer_bin_path}')
-    shell_result = subprocess.run(f"sudo perf record -F 99  -g  -p {pid} -- sleep 90 &", shell=True)
-    _logger.info('perf done. returncode=%d', shell_result.returncode)
     try:
         db = __try_to_connect(args.ip, int(args.mysql_port))
         cursor = db.cursor(cursor=mysql.cursors.DictCursor)
@@ -174,7 +152,6 @@ if __name__ == "__main__":
                         zone_name=args.zone,
                         tenant_name=args.tenant_name)
         _logger.info('create tenant done')
-        __kill_observer(home_abs_path)
 
     except mysql.err.Error as e:
         _logger.info("deploy observer failed. ex=%s", str(e))
