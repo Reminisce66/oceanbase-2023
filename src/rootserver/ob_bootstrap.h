@@ -116,10 +116,17 @@ private:
   obrpc::ObCommonRpcProxy &common_proxy_;
   DISALLOW_COPY_AND_ASSIGN(ObPreBootstrap);
 };
-
+class myThreadPool;
+class CreateSchemaTask {
+public:
+    CreateSchemaTask(int64_t start,int64_t end):start_(start),end_(end){}
+    int64_t start_;
+    int64_t end_;
+};
 class ObBootstrap : public ObBaseBootstrap
 {
 public:
+    friend class myThreadPool;
   class TableIdCompare
   {
   public:
@@ -151,7 +158,7 @@ public:
 private:
   static const int64_t HEAT_BEAT_INTERVAL_US = 2 * 1000 * 1000; //2s
   static const int64_t WAIT_RS_IN_SERVICE_TIMEOUT_US = 40 * 1000 * 1000; //40s
-  static const int64_t BATCH_INSERT_SCHEMA_CNT = 128;
+  static const int64_t BATCH_INSERT_SCHEMA_CNT = 32;
   virtual int generate_table_schema_array_for_create_partition(
       const share::schema::ObTableSchema &tschema,
       common::ObIArray<share::schema::ObTableSchema> &table_schema_array);
@@ -207,6 +214,50 @@ private:
   int64_t begin_ts_;
 private:
   DISALLOW_COPY_AND_ASSIGN(ObBootstrap);
+};
+class myThreadPool :public ThreadPool {
+    static const int64_t QUEUE_WAIT_TIME = 100 * 1000;
+    static const int64_t MAX_THREAD_NUM = 256;
+public:
+    myThreadPool(bool &is_finish,ObDDLService &ddl_service,ObIArray<ObTableSchema> &table_schemas,int task_nums):is_inited_(false),is_finish_(is_finish),ddl_service_(ddl_service),table_schemas_(table_schemas),task_nums_(task_nums)
+    /*trans_(&(ddl_service_.get_schema_service()), true, true, false, false),
+    ddl_operator_(ddl_service_.get_schema_service(),ddl_service_.get_sql_proxy())*/{
+        /*int64_t refreshed_schema_version = 0;
+        int ret=OB_SUCCESS;
+        if(OB_FAIL(trans_.start(&ddl_service_.get_sql_proxy(),
+                                OB_SYS_TENANT_ID,
+                                refreshed_schema_version))) {
+            LOG_WARN("start transaction failed", KR(ret));
+        }*/
+    }
+    virtual ~myThreadPool();
+
+    int init(const int64_t thread_num, const int64_t task_num_limit, const char *name = "unknown");
+    void destroy();
+    int push(void *task);
+    int64_t get_queue_num() const { return queue_.size(); }
+
+private:
+    void handle(void *task); // 处理任务
+    void handle_drop(void *task) { handle(task); }
+    int batch_create_schema(ObDDLService &ddl_service,
+                                          ObIArray<ObTableSchema> &table_schemas,
+                                          const int64_t begin, const int64_t end);
+protected:
+    void run1();
+
+private:
+    const char* name_;
+    bool is_inited_;
+    ObLightyQueue queue_;
+    int64_t total_thread_num_;
+    bool &is_finish_;
+    ObDDLService &ddl_service_;
+    ObIArray<ObTableSchema> &table_schemas_;
+    int task_nums_;
+    //ObDDLSQLTransaction trans_;
+    //ObDDLOperator ddl_operator_;
+
 };
 
 #define BOOTSTRAP_CHECK_SUCCESS_V2(function_name) \

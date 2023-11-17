@@ -23027,6 +23027,7 @@ int ObDDLService::init_tenant_schema(
     ret = OB_ERR_UNEXPECTED;
     LOG_WARN("ptr is null", KR(ret), KP_(sql_proxy), KP_(schema_service), KP(GCTX.lst_operator_));
   } else {
+      LOG_INFO("[CREATE_TENANT] init_tenant_schema_step1 start", K(tenant_id));
     ObSchemaService *schema_service_impl = schema_service_->get_schema_service();
     // 1. init tenant global stat
     if (OB_SUCC(ret)) {
@@ -23049,6 +23050,7 @@ int ObDDLService::init_tenant_schema(
         }
       }
 
+      LOG_INFO("[CREATE_TENANT] init_tenant_schema_step2 start", K(tenant_id));
       common::ObMySQLTransaction trans;
       if (OB_FAIL(ret)) {
       } else if (OB_FAIL(trans.start(sql_proxy_, tenant_id))) {
@@ -23078,7 +23080,7 @@ int ObDDLService::init_tenant_schema(
         }
       }
     }
-
+    LOG_INFO("[CREATE_TENANT] init_tenant_schema_step3 start", K(tenant_id));
     // 2. init tenant schema
     if (OB_SUCC(ret)) {
       ObDDLSQLTransaction trans(schema_service_, true, true, false, false);
@@ -23114,7 +23116,7 @@ int ObDDLService::init_tenant_schema(
       } else if (is_creating_standby && OB_FAIL(set_log_restore_source(gen_user_tenant_id(tenant_id), log_restore_source, trans))) {
         LOG_WARN("fail to set_log_restore_source", KR(ret), K(tenant_id), K(log_restore_source));
       }
-
+    LOG_INFO("[CREATE_TENANT] init_tenant_schema_step4 start", K(tenant_id));
       if (trans.is_started()) {
         int temp_ret = OB_SUCCESS;
         bool commit = OB_SUCC(ret);
@@ -23153,7 +23155,7 @@ int ObDDLService::init_tenant_schema(
         LOG_WARN("fail to publish schema", KR(ret), K(tenant_id), K(addrs));
       }
     }
-
+    LOG_INFO("[CREATE_TENANT] init_tenant_schema_step5 start", K(tenant_id));
     // 3. set baseline schema version
     if (OB_SUCC(ret)) {
       ObGlobalStatProxy global_stat_proxy(*sql_proxy_, tenant_id);
