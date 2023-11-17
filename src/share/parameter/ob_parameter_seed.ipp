@@ -68,7 +68,7 @@ DEF_STR(zone, OB_CLUSTER_PARAMETER, "", "specifies the zone name",
         ObParameterAttr(Section::OBSERVER, Source::DEFAULT, EditLevel::DYNAMIC_EFFECTIVE));
 DEF_STR(ob_startup_mode, OB_CLUSTER_PARAMETER, "NORMAL", "specifies the observer startup mode",
         ObParameterAttr(Section::OBSERVER, Source::DEFAULT, EditLevel::READONLY));
-DEF_TIME(internal_sql_execute_timeout, OB_CLUSTER_PARAMETER, "30s", "[1000us, 1h]",
+DEF_TIME(internal_sql_execute_timeout, OB_CLUSTER_PARAMETER, "1s", "[1000us, 1h]",
          "the number of microseconds an internal DML request is permitted to "
          "execute before it is terminated. Range: [1000us, 1h]",
          ObParameterAttr(Section::OBSERVER, Source::DEFAULT, EditLevel::DYNAMIC_EFFECTIVE));
@@ -183,7 +183,7 @@ DEF_STR(obconfig_url, OB_CLUSTER_PARAMETER, "", "URL for OBConfig service",
         ObParameterAttr(Section::OBSERVER, Source::DEFAULT, EditLevel::DYNAMIC_EFFECTIVE));
 DEF_LOG_LEVEL(syslog_level, OB_CLUSTER_PARAMETER, "WDIAG", "specifies the current level of logging. There are DEBUG, TRACE, WDIAG, EDIAG, INFO, WARN, ERROR, seven different log levels.",
               ObParameterAttr(Section::OBSERVER, Source::DEFAULT, EditLevel::DYNAMIC_EFFECTIVE));
-DEF_CAP(syslog_io_bandwidth_limit, OB_CLUSTER_PARAMETER, "30MB",
+DEF_CAP(syslog_io_bandwidth_limit, OB_CLUSTER_PARAMETER, "3GB",
         "Syslog IO bandwidth limitation, exceeding syslog would be truncated. Use 0 to disable ERROR log.",
         ObParameterAttr(Section::OBSERVER, Source::DEFAULT, EditLevel::DYNAMIC_EFFECTIVE));
 DEF_INT(diag_syslog_per_error_limit, OB_CLUSTER_PARAMETER, "200", "[0,]",
