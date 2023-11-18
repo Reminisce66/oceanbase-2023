@@ -96,6 +96,51 @@ class ObTableGroupHelp;
 //class ObFreezeInfoManager;
 class ObSnapshotInfoManager;
 
+class CreateSchemaTask1 {
+public:
+    CreateSchemaTask1():start_(0),end_(0){}
+    CreateSchemaTask1(const CreateSchemaTask1& task):start_(task.start_),end_(task.end_){}
+    CreateSchemaTask1(int64_t start,int64_t end):start_(start),end_(end){}
+    void set(int64_t start,int64_t end){start_=start;end_=end;}
+    int64_t start_;
+    int64_t end_;
+};
+class my1ThreadPool :public ThreadPool {
+    static const int64_t QUEUE_WAIT_TIME = 100 * 1000;
+    static const int64_t MAX_THREAD_NUM = 256;
+public:
+    my1ThreadPool(bool &is_finish,ObIArray<ObTableSchema> &table_schemas,int task_nums,common::ObMySQLProxy &sql_proxy,share::schema::ObMultiVersionSchemaService &schema_service,const uint64_t tenant_id)
+    :is_inited_(false),is_finish_(is_finish),table_schemas_(table_schemas),task_nums_(task_nums),
+     sql_proxy_(sql_proxy),schema_service_(schema_service),tenant_id_(tenant_id){}
+    virtual ~my1ThreadPool();
+
+    int init(const int64_t thread_num, const int64_t task_num_limit, const char *name = "unknown");
+    void destroy();
+    int push(void *task);
+    int64_t get_queue_num() const { return queue_.size(); }
+
+private:
+    void handle(void *task); // 处理任务
+    void handle_drop(void *task) { handle(task); }
+    int batch_create_schema(const int64_t begin, const int64_t end);
+protected:
+    void run1();
+
+private:
+    const char* name_;
+    bool is_inited_;
+    ObLightyQueue queue_;
+    int64_t total_thread_num_;
+    bool &is_finish_;
+    ObIArray<ObTableSchema> &table_schemas_;
+    int task_nums_;
+    common::ObMySQLProxy &sql_proxy_;
+    share::schema::ObMultiVersionSchemaService &schema_service_;
+    const uint64_t tenant_id_;
+    //ObMySQLTransaction &trans_;
+    //ObDDLOperator &ddl_operator_;
+
+};
 class ObDDLService
 {
 public:
@@ -2050,7 +2095,8 @@ private:
   int create_sys_table_schemas(
       ObDDLOperator &ddl_operator,
       ObMySQLTransaction &trans,
-      common::ObIArray<share::schema::ObTableSchema> &tables);
+      common::ObIArray<share::schema::ObTableSchema> &tables,
+      const uint64_t tenant_id);
   int try_force_drop_tenant(const share::schema::ObTenantSchema &tenant_schema);
 
   int handle_security_audit_in_trans(const share::schema::ObSAuditSchema &audit_schema,
