@@ -23221,7 +23221,7 @@ int ObDDLService::create_sys_table_schemas(
   } else {
 
   int64_t begin = 0;
-  int64_t batch_count = 32;
+  int64_t batch_count = 16;
   bool is_finish=false;
   int task_num=tables.count()/batch_count;
   if(tables.count()%batch_count!=0){
