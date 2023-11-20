@@ -99,9 +99,9 @@ int ObCreateTenantExecutor::execute(ObExecContext &ctx, ObCreateTenantStmt &stmt
     int tmp_ret = OB_SUCCESS; // try refresh schema and wait ls valid
     if (OB_TMP_FAIL(wait_schema_refreshed_(tenant_id))) {
       LOG_WARN("fail to wait schema refreshed", KR(tmp_ret), K(tenant_id));
-    } else if (OB_TMP_FAIL(wait_user_ls_valid_(tenant_id))) {//wait long time
+    } /*else if (OB_TMP_FAIL(wait_user_ls_valid_(tenant_id))) {//wait long time
       LOG_WARN("failed to wait user ls valid, but ignore", KR(tmp_ret), K(tenant_id));
-    }
+    }*/
   }
   LOG_INFO("[CREATE TENANT] create tenant", KR(ret), K(create_tenant_arg),
            "cost", ObTimeUtility::current_time() - start_ts);
@@ -196,7 +196,7 @@ int ObCreateTenantExecutor::wait_user_ls_valid_(const uint64_t tenant_id)
       if (OB_FAIL(ret)) {
       } else if (user_ls_valid) {
       } else {
-        const int64_t INTERVAL = 200 * 1000L; // 500ms
+        const int64_t INTERVAL = 100 * 1000L; // 500ms
         LOG_INFO("wait user ls valid", KR(ret), K(tenant_id));
         ob_usleep(INTERVAL);
       }
