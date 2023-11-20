@@ -119,7 +119,10 @@ private:
 class myThreadPool;
 class CreateSchemaTask {
 public:
+    CreateSchemaTask():start_(0),end_(0){}
+    CreateSchemaTask(const CreateSchemaTask& task):start_(task.start_),end_(task.end_){}
     CreateSchemaTask(int64_t start,int64_t end):start_(start),end_(end){}
+    void set(int64_t start,int64_t end){start_=start;end_=end;}
     int64_t start_;
     int64_t end_;
 };
