@@ -187,7 +187,7 @@ int ObTenantThreadHelper::wait_tenant_data_version_ready_(
     }
 
     if (!is_ready) {
-      idle(10 * 1000 * 1000);
+      idle(100 * 1000);
     }
   }
 
@@ -222,7 +222,7 @@ int ObTenantThreadHelper::wait_tenant_schema_and_version_ready_(
       }
 
       if (!is_ready) {
-        idle(10 * 1000 *1000);
+        idle(  100*1000);
       }
     }
 
