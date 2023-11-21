@@ -50,7 +50,7 @@ using namespace oceanbase::storage;
 
 ObTenantNodeBalancer::ObTenantNodeBalancer()
     : omt_(NULL), myaddr_(), unit_getter_(), lock_(common::ObLatchIds::CONFIG_LOCK),
-      refresh_interval_(10L * 1000L * 1000L)
+      refresh_interval_(1L * 1000L * 1000L)//
 {
   if (lib::is_mini_mode()) {
     refresh_interval_ /= 2;
