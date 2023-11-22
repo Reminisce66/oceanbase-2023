@@ -63,7 +63,7 @@ constexpr offset_t MAX_INFO_BLOCK_SIZE = 4 * 1024;
 constexpr offset_t MAX_META_ENTRY_SIZE = 4 * 1024;
 constexpr offset_t MAX_LOG_BODY_SIZE = 2 * 1024 * 1024 + 16 * 1024;                 // The max size of one log body is (2MB + 16KB).
 
-const int64_t PALF_PHY_BLOCK_SIZE = 1 << 26;                                        // 64MB
+const int64_t PALF_PHY_BLOCK_SIZE = 1 << 30;                                        // 64MB
 const int64_t PALF_BLOCK_SIZE = PALF_PHY_BLOCK_SIZE - MAX_INFO_BLOCK_SIZE;          // log block size is 64M-MAX_INFO_BLOCK_SIZE by default.
 const int64_t PALF_META_BLOCK_SIZE = PALF_PHY_BLOCK_SIZE - MAX_INFO_BLOCK_SIZE;     // meta block size is 64M-MAX_INFO_BLOCK_SIZE by default.
 

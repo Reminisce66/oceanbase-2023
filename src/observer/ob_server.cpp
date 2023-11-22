@@ -872,13 +872,13 @@ int ObServer::start()
       LOG_INFO("success to start server checkpoint slog handler");
     }
 
-    if (FAILEDx(log_block_mgr_.start(storage_env_.log_disk_size_))) {
+    if (FAILEDx(log_block_mgr_.start(storage_env_.log_disk_size_))) {//600ms
       LOG_ERROR("fail to start log pool", KR(ret));
     } else {
       LOG_INFO("success to start log pool");
     }
 
-    if (FAILEDx(try_update_hidden_sys())) {
+    if (FAILEDx(try_update_hidden_sys())) {//150ms
       LOG_ERROR("fail to update hidden sys tenant", KR(ret));
     } else {
       LOG_INFO("success to update hidden sys tenant");
