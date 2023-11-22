@@ -1091,7 +1091,7 @@ int ObServerLogBlockMgr::allocate_blocks_at_tmp_dir_(const FileDesc &dir_fd,
   int ret = OB_SUCCESS;
   int64_t remain_block_cnt = block_cnt;
   block_id_t block_id = start_block_id;
-  while (OB_SUCC(ret) && remain_block_cnt > 0) {
+  /*while (OB_SUCC(ret) && remain_block_cnt > 0) {
     if (OB_FAIL(allocate_block_at_tmp_dir_(dir_fd, block_id))) {
       CLOG_LOG(ERROR, "allocate_block_at_tmp_dir_ failed", K(ret), KPC(this), K(dir_fd),
                K(block_id));
@@ -1099,7 +1099,20 @@ int ObServerLogBlockMgr::allocate_blocks_at_tmp_dir_(const FileDesc &dir_fd,
       remain_block_cnt--;
       block_id++;
     }
-  }
+  }*/
+  int64_t mid=block_cnt/2;
+  std::thread thread1([this, &mid, &dir_fd]() {
+        for (int block_id = 0; block_id < mid;block_id++) {
+            allocate_block_at_tmp_dir_(dir_fd, block_id);
+        }
+  });
+  std::thread thread2([this, &block_cnt, &dir_fd, &mid]() {
+        for (int block_id = mid; block_id < block_cnt;block_id++) {
+            allocate_block_at_tmp_dir_(dir_fd, block_id);
+        }
+  });
+  thread1.join();
+  thread2.join();
   if (-1 == ::fsync(dir_fd)) {
     int tmp_ret = convert_sys_errno();
     CLOG_LOG(ERROR, "::fsync failed", K(ret), K(tmp_ret), KPC(this), K(dir_fd));
