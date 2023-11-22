@@ -39,14 +39,14 @@ def __clear_env(cluster_home_path:str) -> None:
         path_to_clear = os.path.join(cluster_home_path, path)
         shutil.rmtree(path_to_clear, ignore_errors=True)
 
-def __try_to_connect(host, mysql_port:int, *, timeout_seconds=60):
+def __try_to_connect(host, mysql_port:int, *, timeout_seconds=600):
     error_return = None
     for _ in range(0, timeout_seconds):
         try:
             return mysql.connect(host=host, user="root", port=mysql_port, passwd="")
         except mysql.err.Error as error:
             error_return = error
-            time.sleep(1)
+            time.sleep(0.005)
 
     _logger.info('failed to connect to observer fater %f seconds', timeout_seconds)
     raise error_return
@@ -124,7 +124,7 @@ if __name__ == "__main__":
     shell_result = subprocess.run(observer_cmd, shell=True)
     _logger.info('deploy done. returncode=%d', shell_result.returncode)
 
-    #time.sleep(2)
+    time.sleep(0.8)
     #try:
     db = __try_to_connect(args.ip, int(args.mysql_port))
     cursor = db.cursor(cursor=mysql.cursors.DictCursor)
