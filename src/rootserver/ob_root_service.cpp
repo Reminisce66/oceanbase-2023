@@ -2024,7 +2024,7 @@ int ObRootService::execute_bootstrap(const obrpc::ObBootstrapArg &arg)
     }
     ret = OB_SUCC(ret) ? tmp_ret : ret;
   }
-  BOOTSTRAP_LOG(INFO, "execute_bootstrap finished", K(ret));//start to do_restart cost 4s
+  BOOTSTRAP_LOG(INFO, "execute_bootstrap finished", K(ret));//start to do_restart cost 200ms
   return ret;
 }
 
@@ -2727,7 +2727,7 @@ int ObRootService::create_tenant(const ObCreateTenantArg &arg, UInt64 &tenant_id
       }
     }
   } else {}
-  LOG_INFO("finish create tenant", KR(ret), K(tenant_id), K(arg), "timeout_ts", THIS_WORKER.get_timeout_ts());
+  LOG_INFO("finish create tenant", KR(ret), K(tenant_id), K(arg), "timeout_ts", THIS_WORKER.get_timeout_ts());//5s
   return ret;
 }
 

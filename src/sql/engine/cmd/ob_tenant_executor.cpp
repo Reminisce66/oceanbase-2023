@@ -62,11 +62,13 @@ int ObCreateTenantExecutor::execute(ObExecContext &ctx, ObCreateTenantStmt &stmt
   obrpc::UInt64 tenant_id;
   const obrpc::ObCreateTenantArg &create_tenant_arg = stmt.get_create_tenant_arg();
   ObString first_stmt;
+  LOG_INFO("[CREATE TENANT] create tenant start");
   if (OB_FAIL(stmt.get_first_stmt(first_stmt))) {
     LOG_WARN("fail to get first stmt" , K(ret));
   } else {
     const_cast<obrpc::ObCreateTenantArg&>(create_tenant_arg).ddl_stmt_str_ = first_stmt;
   }
+  LOG_INFO("[CREATE TENANT] create tenant 1.1");
   if (OB_FAIL(ret)) {
   } else if (create_tenant_arg.tenant_schema_.get_arbitration_service_status() != ObArbitrationServiceStatus(ObArbitrationServiceStatus::DISABLED)) {
     bool is_compatible = false;
@@ -78,6 +80,7 @@ int ObCreateTenantExecutor::execute(ObExecContext &ctx, ObCreateTenantStmt &stmt
       LOG_USER_ERROR(OB_OP_NOT_ALLOW, "sys tenant data version is below 4.1, with arbitration service");
     }
   }
+  LOG_INFO("[CREATE TENANT] create tenant 1.2");
   if (OB_FAIL(ret)){
   } else if (OB_FAIL(check_sys_var_options(ctx,
                                     stmt.get_sys_var_nodes(),
@@ -90,21 +93,21 @@ int ObCreateTenantExecutor::execute(ObExecContext &ctx, ObCreateTenantStmt &stmt
   } else if (OB_ISNULL(common_rpc_proxy = task_exec_ctx->get_common_rpc())) {
     ret = OB_NOT_INIT;
     LOG_WARN("get common rpc proxy failed");
-  } else if (OB_FAIL(common_rpc_proxy->create_tenant(create_tenant_arg, tenant_id))) {
+  } else if (OB_FAIL(common_rpc_proxy->create_tenant(create_tenant_arg, tenant_id))) {//5s
     LOG_WARN("rpc proxy create tenant failed", K(ret));
   } else if (!create_tenant_arg.if_not_exist_ && OB_INVALID_ID == tenant_id) {
     ret = OB_ERR_UNEXPECTED;
     LOG_WARN("if_not_exist not set and tenant_id invalid tenant_id", K(create_tenant_arg), K(tenant_id), K(ret));
   } else if (OB_INVALID_ID != tenant_id) {
     int tmp_ret = OB_SUCCESS; // try refresh schema and wait ls valid
-    if (OB_TMP_FAIL(wait_schema_refreshed_(tenant_id))) {
+    if (OB_TMP_FAIL(wait_schema_refreshed_(tenant_id))) {//cost=4us
       LOG_WARN("fail to wait schema refreshed", KR(tmp_ret), K(tenant_id));
     } /*else if (OB_TMP_FAIL(wait_user_ls_valid_(tenant_id))) {//wait long time
       LOG_WARN("failed to wait user ls valid, but ignore", KR(tmp_ret), K(tenant_id));
     }*/
   }
   LOG_INFO("[CREATE TENANT] create tenant", KR(ret), K(create_tenant_arg),
-           "cost", ObTimeUtility::current_time() - start_ts);
+           "cost", ObTimeUtility::current_time() - start_ts);//cost=5087632
   return ret;
 }
 
@@ -401,6 +404,7 @@ int check_sys_var_options(ObExecContext &ctx,
       }//end of for
     }
   }
+  LOG_INFO("[CREATE TENANT] check_sys_var_options finish");
   return ret;
 }
 
