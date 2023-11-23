@@ -218,7 +218,7 @@ int ElectionProposer::register_renew_lease_task_()
   int ret = OB_SUCCESS;
   // 如果续约不够快很多case不能及时切主，所以当MAX_TST设置的比较大时，也让续约间隔设置的短一些
   if (CLICK_FAIL(p_election_->timer_->schedule_task_repeat(renew_lease_task_handle_,
-                                                           std::min(int64_t(500_ms), CALCULATE_RENEW_LEASE_INTERVAL()),
+                                                           std::min(int64_t(50_ms), CALCULATE_RENEW_LEASE_INTERVAL()),
                                                            [this]() {
     int ret = OB_SUCCESS;
     LockGuard lock_guard(p_election_->lock_);
@@ -301,7 +301,7 @@ int ElectionProposer::start()
   #define PRINT_WRAPPER K(*this)
   ELECT_TIME_GUARD(500_ms);
   int ret = OB_SUCCESS;
-  if (CLICK_FAIL(reschedule_or_register_prepare_task_after_(3_s))) {
+  if (CLICK_FAIL(reschedule_or_register_prepare_task_after_(500_s))) {
     LOG_INIT(ERROR, "first time register devote task failed");
   } else if (CLICK_FAIL(register_renew_lease_task_())) {
     LOG_INIT(ERROR, "first time register renew lease task failed");
