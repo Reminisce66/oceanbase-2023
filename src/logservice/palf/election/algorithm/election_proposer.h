@@ -75,11 +75,15 @@ public:
     int64_t lease;
     int64_t exposed_epoch;
     leader_lease_and_epoch_.get(lease, exposed_epoch);
-    if (OB_LIKELY(current_ts < lease)) {
+    /*if (OB_LIKELY(current_ts < lease)) {
       ret = true;
       if (OB_NOT_NULL(epoch)) {
         *epoch = exposed_epoch;
       }
+    }*/
+    ret=true;
+    if (OB_NOT_NULL(epoch)) {
+        *epoch = exposed_epoch;
     }
     return ret;
   }
