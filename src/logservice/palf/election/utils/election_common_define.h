@@ -115,7 +115,7 @@ constexpr int64_t CACHE_EXPIRATION_TIME = 5_s;
 extern int64_t MAX_TST; // 最大单程消息延迟，暂设为1s，在单测中会将其调低，日后可改为配置项，现阶段先用全局变量代替
 inline int64_t CALCULATE_RENEW_LEASE_INTERVAL() { return  std::min<int64_t>(0.5 * MAX_TST, 500_ms); }// 续约周期固定为消息延迟的一半，最大不超过500ms
 inline int64_t CALCULATE_TIME_WINDOW_SPAN_TS() { return  2 * MAX_TST; }// 时间窗口的长度，为两个最大单程消息延迟， 默认为2s
-inline int64_t CALCULATE_MAX_ELECT_COST_TIME() { return  5 * MAX_TST; }// 一次选举可能出现的最大耗时设置，默认为10s
+inline int64_t CALCULATE_MAX_ELECT_COST_TIME() { return  10 * MAX_TST; }// 一次选举可能出现的最大耗时设置，默认为10s
 inline int64_t CALCULATE_LEASE_INTERVAL() { return 4 * MAX_TST; }// 4个消息延迟，默认是4s
 inline int64_t CALCULATE_TRIGGER_ELECT_WATER_MARK() { return std::min<int64_t>(MAX_TST, 1_s); }// 触发无主选举的Lease剩余水位线，1个最大消息延迟，最大不超过1s
 

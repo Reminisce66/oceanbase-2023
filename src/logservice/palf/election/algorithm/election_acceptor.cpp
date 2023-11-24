@@ -122,7 +122,7 @@ int ElectionAcceptor::start()
   bool last_record_lease_valid_state = false;
   int ret = OB_SUCCESS;
   return p_election_->timer_->schedule_task_repeat(time_window_task_handle_,
-                                                   10_ms,
+                                                   100_ms,
                                                    [this,
                                                     last_record_lease_owner,
                                                     last_record_lease_valid_state]() mutable {
