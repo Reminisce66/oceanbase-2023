@@ -22007,8 +22007,37 @@ int ObDDLService::create_tenant(
       ObArray<ObResourcePoolName> pools;
       if (OB_FAIL(get_pools(arg.pool_list_, pools))) {
         LOG_WARN("get_pools failed", KR(ret), K(arg));
-      } else if (OB_FAIL(create_normal_tenant(meta_tenant_id, pools, meta_tenant_schema, tenant_role,
-        recovery_until_scn, meta_sys_variable, false/*create_ls_with_palf*/, meta_palf_base_info, init_configs,//2321ms
+      }else{
+          bool is_finish=false;
+          int task_num=2;
+          my2ThreadPool pool(is_finish,task_num,*this);
+        if(OB_FAIL(pool.init(2,1000,"create_tenant"))) {
+            LOG_WARN("pool init failed", K(ret));
+        }
+        if(OB_FAIL(pool.start())){
+            LOG_WARN("pool start failed", K(ret));
+        }
+        CreateTenantTask task1(meta_tenant_id, pools, meta_tenant_schema, tenant_role,
+        recovery_until_scn, meta_sys_variable, false, meta_palf_base_info, init_configs,
+        arg.is_creating_standby_, arg.log_restore_source_);
+        ObString empty_str;
+        CreateTenantTask task2(user_tenant_id, pools, user_tenant_schema, tenant_role,
+        recovery_until_scn, user_sys_variable, create_ls_with_palf, user_palf_base_info, init_configs,
+        false , empty_str);
+        if(OB_FAIL(pool.push((void *)&task1))){
+          LOG_WARN("pool task failed", K(ret));
+        }
+        ob_usleep(3_s);
+        if(OB_FAIL(pool.push((void *)&task2))){
+           LOG_WARN("pool task failed", K(ret));
+        }
+        while(!is_finish){
+          ob_usleep(100);
+        }
+        pool.destroy();
+
+      }/*else if (OB_FAIL(create_normal_tenant(meta_tenant_id, pools, meta_tenant_schema, tenant_role,
+        recovery_until_scn, meta_sys_variable, false*//*create_ls_with_palf*//*, meta_palf_base_info, init_configs,//2321ms
         arg.is_creating_standby_, arg.log_restore_source_))) {
         LOG_WARN("fail to create meta tenant", KR(ret), K(meta_tenant_id), K(pools), K(meta_sys_variable),
             K(tenant_role), K(recovery_until_scn), K(meta_palf_base_info), K(init_configs));
@@ -22017,11 +22046,11 @@ int ObDDLService::create_tenant(
         DEBUG_SYNC(BEFORE_CREATE_USER_TENANT);
         if (OB_FAIL(create_normal_tenant(user_tenant_id, pools, user_tenant_schema, tenant_role,
               recovery_until_scn, user_sys_variable, create_ls_with_palf, user_palf_base_info, init_configs,//2149ms
-              false /* is_creating_standby */, empty_str))) {
+              false *//* is_creating_standby *//*, empty_str))) {
           LOG_WARN("fail to create user tenant", KR(ret), K(user_tenant_id), K(pools), K(user_sys_variable),
               K(tenant_role), K(recovery_until_scn), K(user_palf_base_info));
         }
-      }
+      }*/
       // drop tenant if create tenant failed.
       // meta tenant will be force dropped with its user tenant.
       if (OB_FAIL(ret) && tenant_role.is_primary()) {
@@ -35879,6 +35908,115 @@ int my1ThreadPool::batch_create_schema(const int64_t begin, const int64_t end)
     //BOOTSTRAP_CHECK_SUCCESS();
     return ret;
 }
+
+
+
+my2ThreadPool::~my2ThreadPool()
+{
+    if (is_inited_) {
+        destroy();
+    }
+}
+
+int my2ThreadPool::init(const int64_t thread_num, const int64_t task_num_limit, const char* name)
+{
+    int ret = OB_SUCCESS;
+    if (is_inited_) {
+        ret = OB_INIT_TWICE;
+    } else if (thread_num <= 0 || task_num_limit <= 0 || thread_num > MAX_THREAD_NUM || OB_ISNULL(name)) {
+        ret = OB_INVALID_ARGUMENT;
+    } else if (OB_FAIL(queue_.init(task_num_limit, name, MTL_ID()))) {
+        LOG_WARN("task queue init failed", K(ret), K(task_num_limit));
+    } else {
+        is_inited_ = true;
+        name_ = name;
+        total_thread_num_ = thread_num;
+        set_thread_count(thread_num);
+        set_run_wrapper(MTL_CTX());
+        set_thread_name(name,0);
+
+    }
+
+    if (OB_FAIL(ret)) {
+        destroy();
+    } else {
+        LOG_INFO("simple thread pool init success", KCSTRING(name), K(thread_num), K(task_num_limit));
+    }
+    return ret;
+}
+
+void my2ThreadPool::destroy()
+{
+    is_inited_ = false;
+    lib::ThreadPool::stop();
+    lib::ThreadPool::wait();
+    queue_.destroy();
+}
+
+int my2ThreadPool::push(void *task)
+{
+    int ret = OB_SUCCESS;
+    LOG_WARN("push");
+    if (!is_inited_) {
+        ret = OB_NOT_INIT;
+    } else if (NULL == task) {
+        ret = OB_INVALID_ARGUMENT;
+    } else if (has_set_stop()) {
+        ret = OB_IN_STOP_STATE;
+    } else {
+
+        ret = queue_.push(task);
+        LOG_WARN("task addr 2",K((int64_t)task));
+        LOG_WARN("push sucess");
+        if (OB_SIZE_OVERFLOW == ret) {
+            ret = OB_EAGAIN;
+        }
+    }
+    return ret;
+}
+void my2ThreadPool::run1(){
+    int ret = OB_SUCCESS;
+    if (OB_NOT_NULL(name_)) {
+        lib::set_thread_name(name_);
+    }
+    while (!has_set_stop() && !(OB_NOT_NULL(&lib::Thread::current()) ? lib::Thread::current().has_set_stop() : false)) {
+        void *task = NULL;
+        if (OB_SUCC(queue_.pop(task, QUEUE_WAIT_TIME))) {
+            LOG_WARN("access task");
+            LOG_WARN("task addr",K((int64_t)task));
+            handle(task);
+            ATOMIC_DEC(&task_nums_);
+            LOG_WARN("task_nums_",K(task_nums_));
+        }
+        if(ATOMIC_LOAD(&task_nums_)==0){
+        is_finish_=true;
+
+        }
+    }
+
+    if (has_set_stop()) {
+        void *task = NULL;
+        while (OB_SUCC(queue_.pop(task))) {
+            handle_drop(task);
+        }
+    }
+}
+void my2ThreadPool::handle(void *task1){
+    int ret = OB_SUCCESS;
+    auto *task=reinterpret_cast<CreateTenantTask *>(task1);
+    obDdlService_.create_normal_tenant(task->tenant_id_,
+        task->pool_list_,
+        task->tenant_schema_,
+        task->tenant_role_,
+        task->recovery_until_scn_,
+        task->sys_variable_,
+        task->create_ls_with_palf_,
+        task->palf_base_info_,
+        task->init_configs_,
+        task->is_creating_standby_,
+        task->log_restore_source_);
+}
+
 
 } // end namespace rootserver
 } // end namespace oceanbase

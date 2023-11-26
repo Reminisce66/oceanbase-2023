@@ -141,6 +141,84 @@ private:
     //ObDDLOperator &ddl_operator_;
 
 };
+
+class CreateTenantTask {
+public:
+    //CreateTenantTask():{}
+    CreateTenantTask(const CreateTenantTask& task):tenant_id_(task.tenant_id_),pool_list_(task.pool_list_),
+                                                   tenant_schema_(task.tenant_schema_),tenant_role_(task.tenant_role_),
+                                                   recovery_until_scn_(task.recovery_until_scn_),sys_variable_(task.sys_variable_),
+                                                   create_ls_with_palf_(task.create_ls_with_palf_),palf_base_info_(task.palf_base_info_),
+                                                   init_configs_(task.init_configs_),is_creating_standby_(task.is_creating_standby_),
+                                                   log_restore_source_(task.log_restore_source_){}
+    CreateTenantTask(const uint64_t tenant_id,
+                     const ObIArray<share::ObResourcePoolName> &pool_list,
+                     const share::schema::ObTenantSchema &tenant_schema,
+                     const share::ObTenantRole &tenant_role,
+                     const SCN &recovery_until_scn,
+                     ObSysVariableSchema &sys_variable,
+                     const bool create_ls_with_palf,
+                     const palf::PalfBaseInfo &palf_base_info,
+                     const common::ObIArray<common::ObConfigPairs> &init_configs,
+                     bool is_creating_standby,
+                     const common::ObString &log_restore_source):tenant_id_(tenant_id),pool_list_(pool_list),
+                                                tenant_schema_(tenant_schema),tenant_role_(tenant_role),
+                                                recovery_until_scn_(recovery_until_scn),sys_variable_(sys_variable),
+                                                create_ls_with_palf_(create_ls_with_palf),palf_base_info_(palf_base_info),
+                                                init_configs_(init_configs),is_creating_standby_(is_creating_standby),
+                                                log_restore_source_(log_restore_source){}
+    //void set(int64_t start,int64_t end){start_=start;end_=end;}
+    const uint64_t tenant_id_;
+    const ObIArray<share::ObResourcePoolName> &pool_list_;
+    const share::schema::ObTenantSchema &tenant_schema_;
+    const share::ObTenantRole &tenant_role_;
+    const SCN &recovery_until_scn_;
+    ObSysVariableSchema &sys_variable_;
+    const bool create_ls_with_palf_;
+    const palf::PalfBaseInfo &palf_base_info_;
+    const common::ObIArray<common::ObConfigPairs> &init_configs_;
+    bool is_creating_standby_;
+    const common::ObString &log_restore_source_;
+
+};
+class ObDDLService;
+class my2ThreadPool :public ThreadPool {
+    static const int64_t QUEUE_WAIT_TIME = 100 * 1000;
+    static const int64_t MAX_THREAD_NUM = 256;
+public:
+    my2ThreadPool(bool &is_finish,int task_nums,ObDDLService& obDdlService)
+            :is_inited_(false),is_finish_(is_finish),task_nums_(task_nums),
+            obDdlService_(obDdlService){}
+    virtual ~my2ThreadPool();
+
+    int init(const int64_t thread_num, const int64_t task_num_limit, const char *name = "unknown");
+    void destroy();
+    int push(void *task);
+    int64_t get_queue_num() const { return queue_.size(); }
+
+private:
+    void handle(void *task); // 处理任务
+    void handle_drop(void *task) { handle(task); }
+
+protected:
+    void run1();
+
+private:
+    const char* name_;
+    bool is_inited_;
+    ObLightyQueue queue_;
+    int64_t total_thread_num_;
+    bool &is_finish_;
+    //ObIArray<ObTableSchema> &table_schemas_;
+    int task_nums_;
+    //common::ObMySQLProxy &sql_proxy_;
+    //share::schema::ObMultiVersionSchemaService &schema_service_;
+    //const uint64_t tenant_id_;
+    //ObMySQLTransaction &trans_;
+    //ObDDLOperator &ddl_operator_;
+    ObDDLService & obDdlService_;
+
+};
 class ObDDLService
 {
 public:
@@ -148,6 +226,7 @@ public:
 public:
   friend class ObTableGroupHelp;
   friend class ObStandbyClusterSchemaProcessor;
+  friend class my2ThreadPool;
   ObDDLService();
   virtual ~ObDDLService() {}
 
