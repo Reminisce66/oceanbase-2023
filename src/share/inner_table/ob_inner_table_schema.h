@@ -2700,9 +2700,9 @@ const schema_create_func all_core_table_schema_creator [] = {
   NULL,};
 
 const schema_create_func core_table_schema_creators [] = {
+      ObInnerTableSchema::all_ddl_operation_schema,
   ObInnerTableSchema::all_table_schema,
   ObInnerTableSchema::all_column_schema,
-  ObInnerTableSchema::all_ddl_operation_schema,
   NULL,};
 
 const schema_create_func sys_table_schema_creators [] = {

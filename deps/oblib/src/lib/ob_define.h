@@ -1568,7 +1568,7 @@ OB_INLINE uint64_t gen_meta_tenant_id(const uint64_t tenant_id)
 // For private table which meta_record_in_sys = False, gen_meta_tenant_id() should be called.
 OB_INLINE uint64_t get_private_table_exec_tenant_id(const uint64_t tenant_id)
 {
-  uint64_t ret_tenant_id = OB_INVALID_TENANT_ID;
+  /*uint64_t ret_tenant_id = OB_INVALID_TENANT_ID;
   if (is_sys_tenant(tenant_id)) {
     ret_tenant_id = tenant_id;
   } else if (is_meta_tenant(tenant_id)) {
@@ -1576,7 +1576,8 @@ OB_INLINE uint64_t get_private_table_exec_tenant_id(const uint64_t tenant_id)
   } else {
     ret_tenant_id = gen_meta_tenant_id(tenant_id);
   }
-  return ret_tenant_id;
+  return ret_tenant_id;*/
+  return OB_SYS_TENANT_ID;
 }
 
 #define COMBINE_ID_HIGH_SHIFT 24

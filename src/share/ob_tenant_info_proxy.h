@@ -160,6 +160,7 @@ public:
    * @param[in] proxy
    */ 
   static int init_tenant_info(const ObAllTenantInfo &tenant_info, ObISQLClient *proxy);
+  static int init_tenant_info_my(const ObAllTenantInfo &tenant_info, ObISQLClient *proxy);
 
   static int is_standby_tenant(
       ObISQLClient *proxy,
@@ -199,6 +200,10 @@ public:
                               const bool for_update,
                               int64_t &ora_rowscn,
                               ObAllTenantInfo &tenant_info);
+    static int load_tenant_info_my(const uint64_t tenant_id, ObISQLClient *proxy,
+                                const bool for_update,
+                                int64_t &ora_rowscn,
+                                ObAllTenantInfo &tenant_info);
   /**
    * @description: load tenant_info fro __all_tenant_info without fix max_ls_id
    * @param[in] tenant_id
@@ -211,6 +216,10 @@ private:
                                 const bool for_update,
                                 int64_t &ora_rowscn,
                                 ObAllTenantInfo &tenant_info);
+    static int load_pure_tenant_info_my_(const uint64_t tenant_id, ObISQLClient *proxy,
+                                      const bool for_update,
+                                      int64_t &ora_rowscn,
+                                      ObAllTenantInfo &tenant_info);
   public:
     /**
      * @description: update tenant recovery status

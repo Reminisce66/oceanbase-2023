@@ -5169,7 +5169,7 @@ int ObDDLOperator::init_tenant_env(
     }
   }
 
-  if (OB_SUCC(ret) && is_meta_tenant(tenant_id)) {
+  /*if (OB_SUCC(ret) && is_meta_tenant(tenant_id)) {
     const uint64_t user_tenant_id = gen_user_tenant_id(tenant_id);
     ObAllTenantInfo tenant_info;
     if (OB_FAIL(tenant_info.init(user_tenant_id, tenant_role, NORMAL_SWITCHOVER_STATUS, 0,
@@ -5178,7 +5178,7 @@ int ObDDLOperator::init_tenant_env(
     } else if (OB_FAIL(ObAllTenantInfoProxy::init_tenant_info(tenant_info, &trans))) {
       LOG_WARN("failed to init tenant info", KR(ret), K(tenant_info));
     }
-  }
+  }*/
 
   return ret;
 }

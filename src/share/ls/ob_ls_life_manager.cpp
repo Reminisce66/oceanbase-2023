@@ -30,7 +30,7 @@ int ObLSLifeAgentManager::create_new_ls(
 {
   int ret = OB_SUCCESS;
   ObMySQLTransaction trans; 
-  const uint64_t exec_tenant_id = ObLSLifeIAgent::get_exec_tenant_id(ls_info.tenant_id_);
+  const uint64_t exec_tenant_id = OB_SYS_TENANT_ID;
   if (OB_UNLIKELY(!ls_info.is_valid() || !create_ls_scn.is_valid() || zone_priority.empty())) {
     ret = OB_INVALID_ARGUMENT;
     LOG_WARN("invalid argument", KR(ret), K(ls_info), K(create_ls_scn), K(zone_priority));
@@ -47,7 +47,7 @@ int ObLSLifeAgentManager::drop_ls(const uint64_t &tenant_id,
 {
   int ret = OB_SUCCESS;
   ObMySQLTransaction trans; 
-  const uint64_t exec_tenant_id = ObLSLifeIAgent::get_exec_tenant_id(tenant_id);
+  const uint64_t exec_tenant_id = OB_SYS_TENANT_ID;
   if (OB_UNLIKELY(!ls_id.is_valid() || OB_INVALID_TENANT_ID == tenant_id)) {
     ret = OB_INVALID_ARGUMENT;
     LOG_WARN("invalid argument", KR(ret), K(ls_id), K(tenant_id));
@@ -67,7 +67,7 @@ int ObLSLifeAgentManager::set_ls_offline(const uint64_t &tenant_id,
 {
   int ret = OB_SUCCESS;
   ObMySQLTransaction trans; 
-  const uint64_t exec_tenant_id = ObLSLifeIAgent::get_exec_tenant_id(tenant_id);
+  const uint64_t exec_tenant_id = OB_SYS_TENANT_ID;
   if (OB_UNLIKELY(!ls_id.is_valid() || OB_INVALID_TENANT_ID == tenant_id
         || !drop_scn.is_valid()
         || (!ls_is_dropping_status(ls_status) && !ls_is_tenant_dropping_status(ls_status)))) {

@@ -181,7 +181,7 @@ int ObAllTenantInfoProxy::init_tenant_info(
 {
   int64_t begin_time = ObTimeUtility::current_time();
   int ret = OB_SUCCESS;
-  const uint64_t exec_tenant_id = gen_meta_tenant_id(tenant_info.get_tenant_id());
+  const uint64_t exec_tenant_id = OB_SYS_TENANT_ID;
   ObSqlString sql;
   int64_t affected_rows = 0;
   ObTimeoutCtx ctx;
@@ -225,6 +225,58 @@ int ObAllTenantInfoProxy::init_tenant_info(
 
   return ret;
 }
+
+int ObAllTenantInfoProxy::init_tenant_info_my(
+        const ObAllTenantInfo &tenant_info,
+        ObISQLClient *proxy)
+{
+    int64_t begin_time = ObTimeUtility::current_time();
+    int ret = OB_SUCCESS;
+    const uint64_t exec_tenant_id = OB_SYS_TENANT_ID;
+    ObSqlString sql;
+    int64_t affected_rows = 0;
+    ObTimeoutCtx ctx;
+    if (OB_UNLIKELY(!tenant_info.is_valid())) {
+        ret = OB_INVALID_ARGUMENT;
+        LOG_WARN("tenant_info is invalid", KR(ret), K(tenant_info));
+    } else if (OB_ISNULL(proxy)) {
+        ret = OB_ERR_UNEXPECTED;
+        LOG_WARN("proxy is null", KR(ret), KP(proxy));
+    } else if (!is_user_tenant(tenant_info.get_tenant_id())) {
+        ret = OB_INVALID_ARGUMENT;
+        LOG_WARN("meta tenant no need init tenant info", KR(ret), K(tenant_info));
+    } else if (OB_FAIL(rootserver::ObRootUtils::get_rs_default_timeout_ctx(ctx))) {
+        LOG_WARN("fail to get timeout ctx", KR(ret), K(ctx));
+    } else if (OB_FAIL(sql.assign_fmt(
+            "insert into %s (tenant_id, tenant_role, "
+            "switchover_status, switchover_epoch, "
+            "sync_scn, replayable_scn, readable_scn, recovery_until_scn, log_mode, max_ls_id) "
+            "values(%lu, '%s', '%s', %ld, %lu, %lu, %lu, %lu, '%s', %ld)",
+            OB_ALL_TENANT_INFO_TNAME, tenant_info.get_tenant_id(),
+            tenant_info.get_tenant_role().to_str(),
+            tenant_info.get_switchover_status().to_str(),
+            tenant_info.get_switchover_epoch(),
+            tenant_info.get_sync_scn().get_val_for_inner_table_field(),
+            tenant_info.get_replayable_scn().get_val_for_inner_table_field(),
+            tenant_info.get_standby_scn().get_val_for_inner_table_field(),
+            tenant_info.get_recovery_until_scn().get_val_for_inner_table_field(),
+            tenant_info.get_log_mode().to_str(),
+            tenant_info.get_max_ls_id().id()))) {
+        LOG_WARN("failed to assign sql", KR(ret), K(tenant_info), K(sql));
+    } else if (OB_FAIL(proxy->write(exec_tenant_id, sql.ptr(), affected_rows))) {
+        LOG_WARN("failed to execute sql", KR(ret), K(exec_tenant_id), K(sql));
+    } else if (!is_single_row(affected_rows)) {
+        ret = OB_ERR_UNEXPECTED;
+        LOG_WARN("expect updating one row", KR(ret), K(affected_rows), K(sql));
+    }
+
+    int64_t cost = ObTimeUtility::current_time() - begin_time;
+    ROOTSERVICE_EVENT_ADD("tenant_info", "init_tenant_info", K(ret),
+                          K(tenant_info), K(affected_rows), K(cost));
+
+    return ret;
+}
+
 int ObAllTenantInfoProxy::get_tenant_role(
     ObISQLClient *proxy,
     const uint64_t tenant_id,
@@ -338,6 +390,9 @@ int ObAllTenantInfoProxy::load_tenant_info(const uint64_t tenant_id,
   if (OB_FAIL(load_tenant_info(tenant_id, proxy, for_update, ora_rowscn, tenant_info))) {
     LOG_WARN("failed to get tenant info", KR(ret), K(tenant_id), KP(proxy), K(for_update));
   }
+  /*if(ret!=OB_SUCCESS&&OB_FAIL(load_tenant_info_my(tenant_id, proxy, for_update, ora_rowscn, tenant_info))){
+      LOG_WARN("failed to get tenant info", KR(ret), K(tenant_id), KP(proxy), K(for_update));
+  }*/
   return ret;
 }
 
@@ -379,6 +434,43 @@ int ObAllTenantInfoProxy::load_tenant_info(const uint64_t tenant_id,
   }
   return ret;
 }
+int ObAllTenantInfoProxy::load_tenant_info_my(const uint64_t tenant_id,
+                                           ObISQLClient *proxy,
+                                           const bool for_update,
+                                           int64_t &ora_rowscn,
+                                           ObAllTenantInfo &tenant_info)
+{
+    int ret = OB_SUCCESS;
+    tenant_info.reset();
+    ora_rowscn = 0;
+    ObTimeoutCtx ctx;
+    if (OB_ISNULL(proxy)) {
+        ret = OB_ERR_UNEXPECTED;
+        LOG_WARN("proxy is null", KR(ret), KP(proxy));
+    } else if (OB_UNLIKELY(OB_INVALID_TENANT_ID == tenant_id)) {
+        ret = OB_INVALID_ARGUMENT;
+        LOG_WARN("invalid argument", KR(ret), K(tenant_id));
+    } else if (!is_user_tenant(tenant_id)) {
+        //sys and meta tenant is primary
+        if (OB_FAIL(tenant_info.init(tenant_id, share::PRIMARY_TENANT_ROLE))) {
+            LOG_WARN("failed to init tenant info", KR(ret), K(tenant_id));
+        }
+    } else {
+        if (OB_FAIL(load_pure_tenant_info_my_(tenant_id, proxy, for_update, ora_rowscn, tenant_info))) {
+            LOG_WARN("failed to load purge tenant info", KR(ret), K(tenant_id), K(for_update));
+        } else if (DEFAULT_MAX_LS_ID == tenant_info.get_max_ls_id().id()) {
+            //get ls from __all_ls_status
+            share::ObLSStatusOperator ls_op;
+            ObLSID max_ls_id;
+            if (OB_FAIL(ls_op.get_tenant_max_ls_id(tenant_id, max_ls_id, *proxy))) {
+                LOG_WARN("failed to get tenant max ls id", KR(ret), K(tenant_id));
+            } else {
+                tenant_info.set_max_ls_id(max_ls_id);
+            }
+        }
+    }
+    return ret;
+}
 
 int ObAllTenantInfoProxy::load_pure_tenant_info_(const uint64_t tenant_id,
                                            ObISQLClient *proxy,
@@ -397,7 +489,7 @@ int ObAllTenantInfoProxy::load_pure_tenant_info_(const uint64_t tenant_id,
     LOG_WARN("invalid argument", KR(ret), K(tenant_id));
   } else {
     ObSqlString sql;
-    uint64_t exec_tenant_id = gen_meta_tenant_id(tenant_id);
+    uint64_t exec_tenant_id = OB_SYS_TENANT_ID;
     if (OB_FAIL(rootserver::ObRootUtils::get_rs_default_timeout_ctx(ctx))) {
       LOG_WARN("fail to get timeout ctx", KR(ret), K(ctx));
     } else if (OB_FAIL(sql.assign_fmt("select ORA_ROWSCN, * from %s where tenant_id = %lu ",
@@ -424,13 +516,56 @@ int ObAllTenantInfoProxy::load_pure_tenant_info_(const uint64_t tenant_id,
   return ret;
 }
 
+int ObAllTenantInfoProxy::load_pure_tenant_info_my_(const uint64_t tenant_id,
+                                                 ObISQLClient *proxy,
+                                                 const bool for_update,
+                                                 int64_t &ora_rowscn,
+                                                 ObAllTenantInfo &tenant_info)
+{
+    int ret = OB_SUCCESS;
+    ObTimeoutCtx ctx;
+    tenant_info.reset();
+    if (OB_ISNULL(proxy)) {
+        ret = OB_ERR_UNEXPECTED;
+        LOG_WARN("proxy is null", KR(ret), KP(proxy));
+    } else if (OB_UNLIKELY(!is_user_tenant(tenant_id))) {
+        ret = OB_INVALID_ARGUMENT;
+        LOG_WARN("invalid argument", KR(ret), K(tenant_id));
+    } else {
+        ObSqlString sql;
+        uint64_t exec_tenant_id = OB_SYS_TENANT_ID;
+        if (OB_FAIL(rootserver::ObRootUtils::get_rs_default_timeout_ctx(ctx))) {
+            LOG_WARN("fail to get timeout ctx", KR(ret), K(ctx));
+        } else if (OB_FAIL(sql.assign_fmt("select ORA_ROWSCN, * from %s where tenant_id = %lu ",
+                                          OB_ALL_TENANT_INFO_TNAME, tenant_id))) {
+            LOG_WARN("failed to assign sql", KR(ret), K(sql));
+        } else if(for_update && OB_FAIL(sql.append(" for update"))) {
+            LOG_WARN("failed to assign sql", KR(ret), K(sql));
+        } else {
+            HEAP_VAR(ObMySQLProxy::MySQLResult, res) {
+                common::sqlclient::ObMySQLResult *result = NULL;
+                if (OB_FAIL(proxy->read(res, exec_tenant_id, sql.ptr()))) {
+                    LOG_WARN("failed to read", KR(ret), K(exec_tenant_id), K(sql));
+                } else if (OB_ISNULL(result = res.get_result())) {
+                    ret = OB_ERR_UNEXPECTED;
+                    LOG_WARN("failed to get sql result", KR(ret));
+                } else if (OB_FAIL(result->next())) {
+                    LOG_WARN("failed to get tenant info", KR(ret), K(sql));
+                } else if (OB_FAIL(fill_cell(result, tenant_info, ora_rowscn))) {
+                    LOG_WARN("failed to fill cell", KR(ret), K(sql));
+                }
+            }
+        }//end else
+    }
+    return ret;
+}
 int ObAllTenantInfoProxy::update_tenant_recovery_status_in_trans(
     const uint64_t tenant_id, ObMySQLTransaction &trans,
     const ObAllTenantInfo &old_tenant_info, const SCN &sync_scn,
     const SCN &replay_scn, const SCN &readable_scn)
 {
   int ret = OB_SUCCESS;
-  const uint64_t exec_tenant_id = gen_meta_tenant_id(tenant_id);
+  const uint64_t exec_tenant_id = OB_SYS_TENANT_ID;
   ObSqlString sql;
   int64_t affected_rows = 0;
   if (OB_UNLIKELY(OB_INVALID_TENANT_ID == tenant_id ||
@@ -540,7 +675,7 @@ int ObAllTenantInfoProxy::update_tenant_max_ls_id(
     ObMySQLTransaction &trans, const bool for_upgrade)
 {
   int ret = OB_SUCCESS;
-  const uint64_t exec_tenant_id = gen_meta_tenant_id(tenant_id);
+  const uint64_t exec_tenant_id = OB_SYS_TENANT_ID;
   ObSqlString sql;
   int64_t affected_rows = 0;
   int64_t ora_rowscn = 0;//no used
@@ -588,7 +723,7 @@ int ObAllTenantInfoProxy::update_tenant_role(
 {
   int64_t begin_time = ObTimeUtility::current_time();
   int ret = OB_SUCCESS;
-  const uint64_t exec_tenant_id = gen_meta_tenant_id(tenant_id);
+  const uint64_t exec_tenant_id = OB_SYS_TENANT_ID;
   ObSqlString sql;
   int64_t affected_rows = 0;
   ObTimeoutCtx ctx;
@@ -646,7 +781,7 @@ int ObAllTenantInfoProxy::update_tenant_switchover_status(
 {
   int64_t begin_time = ObTimeUtility::current_time();
   int ret = OB_SUCCESS;
-  const uint64_t exec_tenant_id = gen_meta_tenant_id(tenant_id);
+  const uint64_t exec_tenant_id = OB_SYS_TENANT_ID;
   ObSqlString sql;
   int64_t affected_rows = 0;
   ObTimeoutCtx ctx;
@@ -698,7 +833,7 @@ int ObAllTenantInfoProxy::update_tenant_recovery_until_scn(
 
   int64_t begin_time = ObTimeUtility::current_time();
   int ret = OB_SUCCESS;
-  const uint64_t exec_tenant_id = gen_meta_tenant_id(tenant_id);
+  const uint64_t exec_tenant_id = OB_SYS_TENANT_ID;
   ObSqlString sql;
   int64_t affected_rows = 0;
   ObTimeoutCtx ctx;
@@ -764,7 +899,7 @@ int ObAllTenantInfoProxy::update_tenant_status(
 {
   int64_t begin_time = ObTimeUtility::current_time();
   int ret = OB_SUCCESS;
-  const uint64_t exec_tenant_id = gen_meta_tenant_id(tenant_id);
+  const uint64_t exec_tenant_id = OB_SYS_TENANT_ID;
   ObSqlString sql;
   int64_t affected_rows = 0;
   ObTimeoutCtx ctx;
@@ -882,7 +1017,7 @@ int ObAllTenantInfoProxy::update_tenant_log_mode(
     const ObArchiveMode &new_log_mode)
 {
   int ret = OB_SUCCESS;
-  const uint64_t exec_tenant_id = gen_meta_tenant_id(tenant_id);
+  const uint64_t exec_tenant_id = OB_SYS_TENANT_ID;
   ObSqlString sql;
   int64_t affected_rows = 0;
   ObTimeoutCtx ctx;
