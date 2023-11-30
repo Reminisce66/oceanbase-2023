@@ -90,7 +90,7 @@ if __name__ == "__main__":
     parser.add_argument("-c", dest="cluster_id", type=str, default="1")
     parser.add_argument("-i", dest="devname", type=str, default="lo")
     parser.add_argument("-I", dest="ip", type=str, default="127.0.0.1")
-    parser.add_argument("-o", dest="opt_str", type=str, default="__min_full_resource_pool_memory=1073741824,datafile_size=2G,datafile_next=2G,datafile_maxsize=8G,log_disk_size=40G,memory_limit=10G,system_memory=1G,cpu_count=24,cache_wash_threshold=1G,workers_per_cpu_quota=10,schema_history_expire_time=1d,net_thread_count=4,syslog_io_bandwidth_limit=10G")
+    parser.add_argument("-o", dest="opt_str", type=str, default="__min_full_resource_pool_memory=1073741824,datafile_size=20G,datafile_next=20G,datafile_maxsize=100G,log_disk_size=40G,memory_limit=10G,system_memory=1G,cpu_count=24,cache_wash_threshold=1G,workers_per_cpu_quota=10,schema_history_expire_time=1d,net_thread_count=4,syslog_io_bandwidth_limit=30G")
 
     tenant_group = parser.add_argument_group('tenant', 'tenant options')
     tenant_group.add_argument('--tenant-name', dest='tenant_name', type=str, default='test')
@@ -124,7 +124,7 @@ if __name__ == "__main__":
     shell_result = subprocess.run(observer_cmd, shell=True)
     _logger.info('deploy done. returncode=%d', shell_result.returncode)
 
-    time.sleep(0.5)
+    time.sleep(0.8)
     #try:
     db = __try_to_connect(args.ip, int(args.mysql_port))
     cursor = db.cursor(cursor=mysql.cursors.DictCursor)
