@@ -66,10 +66,10 @@ def __create_tenant(cursor, *,
     _logger.info(f'unit create done: {create_unit_sql}')
 
     cursor.execute(create_resource_pool_sql)
-    _logger.info(f'resource pool create done: {create_unit_sql}')
+    _logger.info(f'resource pool create done: {create_resource_pool_sql}')
 
     cursor.execute(create_tenant_sql)
-    _logger.info(f'tenant create done: {create_unit_sql}')
+    _logger.info(f'tenant create done: {create_tenant_sql}')
 
 
 if __name__ == "__main__":
@@ -125,39 +125,39 @@ if __name__ == "__main__":
     shell_result = subprocess.Popen(observer_cmd, shell=True)
     _logger.info('deploy done. returncode=%d', shell_result.returncode)
 
-    time.sleep(2)
-    try:
-        db = __try_to_connect(args.ip, int(args.mysql_port))
-        cursor = db.cursor(cursor=mysql.cursors.DictCursor)
-        _logger.info(f'connect to server success! host={args.ip}, port={args.mysql_port}')
+    #time.sleep(2)
+    #try:
+    db = __try_to_connect(args.ip, int(args.mysql_port))
+    cursor = db.cursor(cursor=mysql.cursors.DictCursor)
+    _logger.info(f'connect to server success! host={args.ip}, port={args.mysql_port}')
 
-        bootstrap_begin = datetime.datetime.now()
-        cursor.execute(f"ALTER SYSTEM BOOTSTRAP ZONE '{args.zone}' SERVER '{rootservice}'")
-        bootstrap_end = datetime.datetime.now()
-        _logger.info('bootstrap success: %s ms' % ((bootstrap_end - bootstrap_begin).total_seconds() * 1000))
+    bootstrap_begin = datetime.datetime.now()
+    cursor.execute(f"ALTER SYSTEM BOOTSTRAP ZONE '{args.zone}' SERVER '{rootservice}'")
+    bootstrap_end = datetime.datetime.now()
+    _logger.info('bootstrap success: %s ms' % ((bootstrap_end - bootstrap_begin).total_seconds() * 1000))
         # checkout server status
-        cursor.execute("select * from oceanbase.__all_server")
-        server_status = cursor.fetchall()
-        if len(server_status) != 1 or server_status[0]['status'] != 'ACTIVE':
-            _logger.info("get server status failed")
-            exit(1)
-        _logger.info('checkout server status ok')
+        #cursor.execute("select * from oceanbase.__all_server")
+        #server_status = cursor.fetchall()
+        #if len(server_status) != 1 or server_status[0]['status'] != 'ACTIVE':
+        #    _logger.info("get server status failed")
+        #    exit(1)
+        #_logger.info('checkout server status ok')
         # ObRootService::check_config_result
 
-        __create_tenant(cursor,
+    __create_tenant(cursor,
                         cpu=args.tenant_cpu,
                         memory_size=args.tenant_memory,
                         unit_name=args.tenant_unit_name,
                         resource_pool_name=args.tenant_resource_pool_name,
                         zone_name=args.zone,
                         tenant_name=args.tenant_name)
-        _logger.info('create tenant done')
+    _logger.info('create tenant done')
 
-    except mysql.err.Error as e:
-        _logger.info("deploy observer failed. ex=%s", str(e))
-        _logger.info(traceback.format_exc())
-        exit(1)
-    except Exception as ex:
-        _logger.info('exception: %s', str(ex))
-        _logger.info(traceback.format_exc())
-        exit(1)
+    #except mysql.err.Error as e:
+    #    _logger.info("deploy observer failed. ex=%s", str(e))
+    #    _logger.info(traceback.format_exc())
+    #    exit(1)
+    #except Exception as ex:
+     #   _logger.info('exception: %s', str(ex))
+    #    _logger.info(traceback.format_exc())
+    #    exit(1)
