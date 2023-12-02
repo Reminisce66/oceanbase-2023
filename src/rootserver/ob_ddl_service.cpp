@@ -22056,9 +22056,11 @@ int ObDDLService::create_tenant(
            LOG_WARN("pool task failed", K(ret));
         }
         while(!is_finish){
-          ob_usleep(100);
+          ob_usleep(1000);
         }
+	int64_t begin_destroy = ObTimeUtility::current_time();
         pool.destroy();
+	LOG_INFO("end destroy cost",K(ret),"cost",ObTimeUtility::current_time() - begin_destroy);
 
       }/*else if (OB_FAIL(create_normal_tenant(meta_tenant_id, pools, meta_tenant_schema, tenant_role,
         recovery_until_scn, meta_sys_variable, false*//*create_ls_with_palf*//*, meta_palf_base_info, init_configs,//2321ms
@@ -23323,9 +23325,11 @@ int ObDDLService::create_sys_table_schemas(
       }*/
     }
     while(!is_finish){
-      ob_usleep(100);
+      ob_usleep(1000);
     }
+    int64_t begin_destroy = ObTimeUtility::current_time();
       pool.destroy();
+      LOG_INFO("end destroy cost",K(ret),"cost",ObTimeUtility::current_time() - begin_destroy);
 
   LOG_INFO("end create all schemas", K(ret), "table count", tables.count(),
       "time_used", ObTimeUtility::current_time() - begin_time);
@@ -35833,14 +35837,21 @@ void my1ThreadPool::run1(){
     if (OB_NOT_NULL(name_)) {
         lib::set_thread_name(name_);
     }
-    while (!has_set_stop() && !(OB_NOT_NULL(&lib::Thread::current()) ? lib::Thread::current().has_set_stop() : false)) {
+    int64_t wait_time=0;
+    while (!is_finish_&&!has_set_stop() && !(OB_NOT_NULL(&lib::Thread::current()) ? lib::Thread::current().has_set_stop() : false)) {
         void *task = NULL;
-        if (OB_SUCC(queue_.pop(task, QUEUE_WAIT_TIME))) {
+        if (OB_SUCC(queue_.pop(task, 1000))) {
             LOG_WARN("access task");
             LOG_WARN("task addr",K((int64_t)task));
             handle(task);
             ATOMIC_DEC(&task_nums_);
             LOG_WARN("task_nums_",K(task_nums_));
+	    wait_time=0;
+        }else {
+           if(wait_time>10){
+               break;
+           }
+           wait_time++;
         }
         if(ATOMIC_LOAD(&task_nums_)==0){
             is_finish_=true;
@@ -35854,6 +35865,7 @@ void my1ThreadPool::run1(){
             handle_drop(task);
         }
     }
+    LOG_WARN("thread quit");
 }
 void my1ThreadPool::handle(void *task){
     int ret = OB_SUCCESS;
@@ -36003,14 +36015,21 @@ void my2ThreadPool::run1(){
     if (OB_NOT_NULL(name_)) {
         lib::set_thread_name(name_);
     }
-    while (!has_set_stop() && !(OB_NOT_NULL(&lib::Thread::current()) ? lib::Thread::current().has_set_stop() : false)) {
+    int64_t wait_time=0;
+    while (!is_finish_&&!has_set_stop() && !(OB_NOT_NULL(&lib::Thread::current()) ? lib::Thread::current().has_set_stop() : false)) {
         void *task = NULL;
-        if (OB_SUCC(queue_.pop(task, QUEUE_WAIT_TIME))) {
+        if (OB_SUCC(queue_.pop(task, 1000))) {
             LOG_WARN("access task");
             LOG_WARN("task addr",K((int64_t)task));
             handle(task);
             ATOMIC_DEC(&task_nums_);
             LOG_WARN("task_nums_",K(task_nums_));
+	    wait_time=0;
+        }else {
+            if(wait_time>10){
+           	 break;
+            }
+            wait_time++;
         }
         if(ATOMIC_LOAD(&task_nums_)==0){
         is_finish_=true;
@@ -36024,6 +36043,7 @@ void my2ThreadPool::run1(){
             handle_drop(task);
         }
     }
+    LOG_WARN("thread quit");
 }
 void my2ThreadPool::handle(void *task1){
     int ret = OB_SUCCESS;
