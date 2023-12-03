@@ -23276,7 +23276,7 @@ int ObDDLService::create_sys_table_schemas(
   } else {
 
   int64_t begin = 0;
-  int64_t batch_count = 16;
+  int64_t batch_count = 96;
   bool is_finish=false;
   int task_num=tables.count()/batch_count;
   if(tables.count()%batch_count!=0){
@@ -23284,7 +23284,7 @@ int ObDDLService::create_sys_table_schemas(
   }
 
   my1ThreadPool pool(is_finish,tables,task_num,*sql_proxy_,*schema_service_,tenant_id);
-  if(OB_FAIL(pool.init(8,1000,"create_schema"))) {
+  if(OB_FAIL(pool.init(4,1000,"create_schema"))) {
     LOG_WARN("pool init failed", K(ret));
   }
   if(OB_FAIL(pool.start())){
