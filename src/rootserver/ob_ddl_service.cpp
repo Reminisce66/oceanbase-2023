@@ -22035,7 +22035,7 @@ int ObDDLService::create_tenant(
           bool is_finish=false;
           int task_num=2;
           my2ThreadPool pool(is_finish,task_num,*this);
-        if(OB_FAIL(pool.init(2,1000,"create_tenant"))) {
+        if(OB_FAIL(pool.init(2,2,"create_tenant"))) {
             LOG_WARN("pool init failed", K(ret));
         }
         if(OB_FAIL(pool.start())){
@@ -22663,17 +22663,17 @@ int ObDDLService::create_normal_tenant(
     LOG_WARN("tenant_id is invalid", KR(ret), K(tenant_id));
   } else if (OB_FAIL(insert_restore_tenant_job(tenant_id, tenant_schema.get_tenant_name(), tenant_role))) {
     LOG_WARN("failed to insert restore tenant job", KR(ret), K(tenant_id), K(tenant_role), K(tenant_schema));
-  } else if (OB_FAIL(create_tenant_sys_ls(tenant_schema, pool_list, create_ls_with_palf, palf_base_info))) {//500ms
+  } else if (OB_FAIL(create_tenant_sys_ls(tenant_schema, pool_list, create_ls_with_palf, palf_base_info,tables))) {//500ms
     LOG_WARN("fail to create tenant sys log stream", KR(ret), K(tenant_schema), K(pool_list), K(palf_base_info));
   } else if (is_user_tenant(tenant_id) && !tenant_role.is_primary()) {
     //standby cluster no need create sys tablet and init tenant schema
-  } else if (OB_FAIL(ObSchemaUtils::construct_inner_table_schemas(tenant_id, tables))) {
+  } /*else if (OB_FAIL(ObSchemaUtils::construct_inner_table_schemas(tenant_id, tables))) {
     LOG_WARN("fail to get inner table schemas in tenant space", KR(ret), K(tenant_id));
-  } else if (OB_FAIL(broadcast_sys_table_schemas(tenant_id, tables))) {//150ms
+  }*/ else if (OB_FAIL(broadcast_sys_table_schemas(tenant_id, tables))) {//150ms
     LOG_WARN("fail to broadcast sys table schemas", KR(ret), K(tenant_id));
-  } else if (OB_FAIL(create_tenant_sys_tablets(tenant_id, tables))) {//258ms
+  } /*else if (OB_FAIL(create_tenant_sys_tablets(tenant_id, tables))) {//258ms
     LOG_WARN("fail to create tenant partitions", KR(ret), K(tenant_id));
-  } else if (OB_FAIL(init_tenant_schema(tenant_id, tenant_schema,//1223ms
+  }*/ else if (OB_FAIL(init_tenant_schema(tenant_id, tenant_schema,//1223ms
              tenant_role, recovery_until_scn, tables, sys_variable, init_configs,
              is_creating_standby, log_restore_source))) {
     LOG_WARN("fail to init tenant schema", KR(ret), K(tenant_role), K(recovery_until_scn),
@@ -22758,7 +22758,8 @@ int ObDDLService::create_tenant_sys_ls(
     const ObTenantSchema &tenant_schema,
     const ObIArray<share::ObResourcePoolName> &pool_list,
     const bool create_ls_with_palf,
-    const palf::PalfBaseInfo &palf_base_info)
+    const palf::PalfBaseInfo &palf_base_info,
+    ObSArray<ObTableSchema> &tables)
 {
   const int64_t start_time = ObTimeUtility::fast_current_time();
   LOG_INFO("[CREATE_TENANT] STEP 2.1. start create sys log stream", K(tenant_schema));
@@ -22806,6 +22807,9 @@ int ObDDLService::create_tenant_sys_ls(
       if (INT64_MAX != THIS_WORKER.get_timeout_ts()) {
         timeout = max(timeout, THIS_WORKER.get_timeout_remain());
       }
+      if (OB_FAIL(ObSchemaUtils::construct_inner_table_schemas(tenant_id, tables))) {
+      LOG_WARN("fail to get inner table schemas in tenant space", KR(ret), K(tenant_id));
+    }
       int64_t wait_leader_start = ObTimeUtility::current_time();
       if (OB_FAIL(ls_leader_waiter.wait(tenant_id, SYS_LS, timeout))) {
         LOG_WARN("fail to wait election leader", KR(ret), K(tenant_id), K(SYS_LS), K(timeout));
@@ -22891,6 +22895,9 @@ int ObDDLService::broadcast_sys_table_schemas(
         }
       } // end for
 
+      if (OB_FAIL(create_tenant_sys_tablets(tenant_id, tables))) {//258ms
+        LOG_WARN("fail to create tenant partitions", KR(ret), K(tenant_id));
+      }
       ObArray<int> return_code_array;
       int tmp_ret = OB_SUCCESS; // always wait all
       if (OB_SUCCESS != (tmp_ret = proxy.wait_all(return_code_array))) {
@@ -23284,7 +23291,7 @@ int ObDDLService::create_sys_table_schemas(
   }
 
   my1ThreadPool pool(is_finish,tables,task_num,*sql_proxy_,*schema_service_,tenant_id);
-  if(OB_FAIL(pool.init(4,1000,"create_schema"))) {
+  if(OB_FAIL(pool.init(4,50,"create_schema"))) {
     LOG_WARN("pool init failed", K(ret));
   }
   if(OB_FAIL(pool.start())){

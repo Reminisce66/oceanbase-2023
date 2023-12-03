@@ -2145,7 +2145,8 @@ private:
       const share::schema::ObTenantSchema &tenant_schema,
       const common::ObIArray<share::ObResourcePoolName> &pool_list,
       const bool create_ls_with_palf,
-      const palf::PalfBaseInfo &palf_base_info);
+      const palf::PalfBaseInfo &palf_base_info,
+      ObSArray<ObTableSchema> &tables);
   int create_tenant_user_ls(const uint64_t tenant_id);
   int broadcast_sys_table_schemas(
       const uint64_t tenant_id,
