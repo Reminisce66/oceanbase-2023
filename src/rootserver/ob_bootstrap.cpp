@@ -759,21 +759,21 @@ int ObBootstrap::execute_bootstrap(rootserver::ObServerZoneOpService &server_zon
     LOG_WARN("construct all schema fail", K(ret));
   } else if (OB_FAIL(broadcast_sys_schema(table_schemas))) {//3.1790 COST=125ms
     LOG_WARN("broadcast_sys_schemas failed", K(table_schemas), K(ret));
-  } else if (OB_FAIL(create_all_partitions())) {//3.1791 -3.2051 COST=249ms
+  } /*else if (OB_FAIL(create_all_partitions())) {//3.1791 -3.2051 COST=249ms
     LOG_WARN("create all partitions fail", K(ret));
-  } else if (OB_FAIL(create_all_schema(ddl_service_, table_schemas))) { // 3.2052 cost=919ms
+  }*/ else if (OB_FAIL(create_all_schema(ddl_service_, table_schemas))) { // 3.2052 cost=919ms
     LOG_WARN("create_all_schema failed",  K(table_schemas), K(ret));
   }
   BOOTSTRAP_CHECK_SUCCESS_V2("create_all_schema");
   ObMultiVersionSchemaService &schema_service = ddl_service_.get_schema_service();
 
-  if (OB_SUCC(ret)) {
+  /*if (OB_SUCC(ret)) {
     if (OB_FAIL(init_system_data())) {//3.2054-3.2060 COST=116ms
       LOG_WARN("failed to init system data", KR(ret));
     } else if (OB_FAIL(ddl_service_.refresh_schema(OB_SYS_TENANT_ID))) {
       LOG_WARN("failed to refresh_schema", K(ret));
     }
-  }
+  }*/
   BOOTSTRAP_CHECK_SUCCESS_V2("refresh_schema");//3.2061 cost=377ms
 
   if (FAILEDx(add_servers_in_rs_list(server_zone_op_service))) {//3.2062 COST=15ms
@@ -1106,7 +1106,7 @@ int ObBootstrap::broadcast_sys_schema(const ObSArray<ObTableSchema> &table_schem
                  "server", rs->server_);
       }
     } // end foreach
-
+    create_all_partitions();
     ObArray<int> return_code_array;
     int tmp_ret = OB_SUCCESS; // always wait all
     if (OB_SUCCESS != (tmp_ret = proxy.wait_all(return_code_array))) {
@@ -1200,6 +1200,13 @@ int ObBootstrap::create_all_schema(ObDDLService &ddl_service,
 
 
     }
+    if (OB_SUCC(ret)) {
+    if (OB_FAIL(init_system_data())) {//3.2054-3.2060 COST=116ms
+      LOG_WARN("failed to init system data", KR(ret));
+    } else if (OB_FAIL(ddl_service_.refresh_schema(OB_SYS_TENANT_ID))) {
+      LOG_WARN("failed to refresh_schema", K(ret));
+    }
+  }
       while(!is_finish){
           ob_usleep(1000);
       }
