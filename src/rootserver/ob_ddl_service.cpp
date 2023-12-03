@@ -23153,9 +23153,12 @@ int ObDDLService::init_tenant_schema(
       const int64_t refreshed_schema_version = 0;
       if (OB_FAIL(trans.start(sql_proxy_, tenant_id, refreshed_schema_version))) {
         LOG_WARN("fail to start trans", KR(ret), K(tenant_id));
-      } else if (OB_FAIL(create_sys_table_schemas(ddl_operator, trans, tables,tenant_id))) {
+      } else if (OB_FAIL(create_sys_table_schemas(ddl_operator, trans, tables,tenant_id,
+                    schema_service_impl,init_schema_version,new_schema_version,
+                    tenant_schema,tenant_role,recovery_until_scn,sys_variable,
+                    init_configs,is_creating_standby,log_restore_source))) {
         LOG_WARN("fail to create sys tables", KR(ret), K(tenant_id));
-      } else if (is_user_tenant(tenant_id) && OB_FAIL(set_sys_ls_status(tenant_id))) {
+      } /*else if (is_user_tenant(tenant_id) && OB_FAIL(set_sys_ls_status(tenant_id))) {
         LOG_WARN("failed to set sys ls status", KR(ret), K(tenant_id));
       } else if (OB_FAIL(schema_service_impl->gen_new_schema_version(
                  tenant_id, init_schema_version, new_schema_version))) {
@@ -23170,10 +23173,10 @@ int ObDDLService::init_tenant_schema(
       } else if (is_meta_tenant(tenant_id) && OB_FAIL(ObServiceEpochProxy::init_service_epoch(
           trans,
           tenant_id,
-          0, /*freeze_service_epoch*/
-          0, /*arbitration_service_epoch*/
-          0, /*server_zone_op_service_epoch*/
-          0 /*heartbeat_service_epoch*/))) {
+          0, *//*freeze_service_epoch*//*
+          0, *//*arbitration_service_epoch*//*
+          0, *//*server_zone_op_service_epoch*//*
+          0 *//*heartbeat_service_epoch*//*))) {
         LOG_WARN("fail to init service epoch", KR(ret));
       } else if (is_creating_standby && OB_FAIL(set_log_restore_source(gen_user_tenant_id(tenant_id), log_restore_source, trans))) {
         LOG_WARN("fail to set_log_restore_source", KR(ret), K(tenant_id), K(log_restore_source));
@@ -23186,9 +23189,9 @@ int ObDDLService::init_tenant_schema(
           ret = (OB_SUCC(ret)) ? temp_ret : ret;
           LOG_WARN("trans end failed", K(commit), K(temp_ret));
         }
-      }
+      }*/
 
-      if (OB_SUCC(ret) && is_meta_tenant(tenant_id)) {
+      /*if (OB_SUCC(ret) && is_meta_tenant(tenant_id)) {
         // If tenant config version in RS is valid first and ddl trans doesn't commit,
         // observer may read from empty __tenant_parameter successfully and raise its tenant config version,
         // which makes some initial tenant configs are not actually updated before related observer restarts.
@@ -23200,9 +23203,9 @@ int ObDDLService::init_tenant_schema(
         } else if (OB_FAIL(OTC_MGR.set_tenant_config_version(user_tenant_id, config_version))) {
           LOG_WARN("failed to set tenant config version", KR(ret), K(user_tenant_id));
         }
-      }
+      }*/
 
-      ObLSInfo sys_ls_info;
+      /*ObLSInfo sys_ls_info;
       ObAddrArray addrs;
       if (FAILEDx(GCTX.lst_operator_->get(
           GCONF.cluster_id,
@@ -23215,11 +23218,11 @@ int ObDDLService::init_tenant_schema(
         LOG_WARN("fail to get paxos member addrs", K(ret), K(tenant_id), K(sys_ls_info));
       } else if (OB_FAIL(publish_schema(tenant_id, addrs))) {
         LOG_WARN("fail to publish schema", KR(ret), K(tenant_id), K(addrs));
-      }
+      }*/
     }
-    LOG_INFO("[CREATE_TENANT] init_tenant_schema_step5 start", KR(ret),K(tenant_id));//23119- 283ms
+    //LOG_INFO("[CREATE_TENANT] init_tenant_schema_step5 start", KR(ret),K(tenant_id));//23119- 283ms
     // 3. set baseline schema version
-    if (OB_SUCC(ret)) {
+    /*if (OB_SUCC(ret)) {
       ObGlobalStatProxy global_stat_proxy(*sql_proxy_, tenant_id);
       ObRefreshSchemaStatus schema_status;
       schema_status.tenant_id_ = tenant_id;
@@ -23231,7 +23234,7 @@ int ObDDLService::init_tenant_schema(
         LOG_WARN("fail to set baseline schema version",
                  KR(ret), K(tenant_id), K(baseline_schema_version));
       }
-    }
+    }*/
   }
 
   LOG_INFO("[CREATE_TENANT] STEP 2.4. finish init tenant schemas", KR(ret), K(tenant_id),//1223ms
@@ -23270,7 +23273,17 @@ int ObDDLService::create_sys_table_schemas(
     ObDDLOperator &ddl_operator,
     ObMySQLTransaction &trans,
     common::ObIArray<ObTableSchema> &tables,
-    const uint64_t tenant_id)
+    const uint64_t tenant_id,
+    ObSchemaService *schema_service_impl,
+    const int64_t  init_schema_version,
+    int64_t new_schema_version,
+    const ObTenantSchema &tenant_schema,
+    const share::ObTenantRole &tenant_role,
+    const SCN &recovery_until_scn,
+    ObSysVariableSchema &sys_variable,
+    const common::ObIArray<common::ObConfigPairs> &init_configs,
+    bool is_creating_standby,
+    const common::ObString &log_restore_source)
 {
   int ret = OB_SUCCESS;
   const int64_t begin_time = ObTimeUtility::current_time();
@@ -23286,36 +23299,36 @@ int ObDDLService::create_sys_table_schemas(
   int64_t batch_count = 96;
   bool is_finish=false;
   int task_num=tables.count()/batch_count;
-  if(tables.count()%batch_count!=0){
-    task_num+=1;
+  if (tables.count()%batch_count!=0){
+  task_num+=1;
   }
 
-  my1ThreadPool pool(is_finish,tables,task_num,*sql_proxy_,*schema_service_,tenant_id);
-  if(OB_FAIL(pool.init(4,50,"create_schema"))) {
-    LOG_WARN("pool init failed", K(ret));
-  }
-  if(OB_FAIL(pool.start())){
-    LOG_WARN("pool start failed", K(ret));
-  }
-  CreateSchemaTask1 tasks [task_num];
-  int task_number=0;
-  const int64_t MAX_RETRY_TIMES = 3;
+  my1ThreadPool pool(is_finish, tables, task_num, *sql_proxy_, *schema_service_, tenant_id);
+      if (OB_FAIL(pool.init(4, 50, "create_schema"))) {
+      LOG_WARN("pool init failed", K(ret));
+      }
+      if (OB_FAIL(pool.start())){
+      LOG_WARN("pool start failed", K(ret));
+      }
+      CreateSchemaTask1 tasks[task_num];
+      int task_number=0;
+      const int64_t MAX_RETRY_TIMES = 3;
 
-    // persist __all_core_table's schema in inner table, which is only used for sys views.
-    for (int64_t i = 0; OB_SUCC(ret) && i < tables.count(); i++) {
+      // persist __all_core_table's schema in inner table, which is only used for sys views.
+      for (int64_t i = 0; OB_SUCC(ret) && i < tables.count(); i++) {
       if (tables.count() == (i + 1) || (i + 1 - begin) >= batch_count) {
-          //CreateSchemaTask task(begin,i+1);
-          //LOG_WARN("task spec 1",K(task.start_),K(task.end_));
-          tasks[task_number].set(begin,i+1);
-          LOG_WARN("task spec 1",K(tasks[task_number].start_),K(tasks[task_number].end_));
-          LOG_WARN("task addr 1",K((int64_t)(&tasks[task_number])));
-          if(OB_FAIL(pool.push((void*)&tasks[task_number]))){
-            LOG_WARN("pool task failed", K(ret));
-          }
-          task_number++;
-          if (OB_SUCC(ret)) {
-            begin = i + 1;
-          }
+      //CreateSchemaTask task(begin,i+1);
+      //LOG_WARN("task spec 1",K(task.start_),K(task.end_));
+      tasks[task_number].set(begin, i+1);
+      LOG_WARN("task spec 1", K(tasks[task_number].start_), K(tasks[task_number].end_));
+      LOG_WARN("task addr 1", K((int64_t)(&tasks[task_number])));
+      if (OB_FAIL(pool.push((void*)&tasks[task_number]))){
+      LOG_WARN("pool task failed", K(ret));
+      }
+      task_number++;
+      if (OB_SUCC(ret)) {
+      begin = i + 1;
+      }
       }
       /*ObTableSchema &table = tables.at(i);
       const int64_t table_id = table.get_table_id();
@@ -23330,7 +23343,94 @@ int ObDDLService::create_sys_table_schemas(
       } else {
         LOG_INFO("add table schema succeed", K(i), K(table_id), K(table_name));
       }*/
-    }
+      }
+
+      {
+      if (is_user_tenant(tenant_id) && OB_FAIL(set_sys_ls_status(tenant_id))) {
+      LOG_WARN("failed to set sys ls status", KR(ret), K(tenant_id));
+      } else if (OB_FAIL(schema_service_impl->gen_new_schema_version(
+      tenant_id, init_schema_version, new_schema_version))) {
+      } else if (OB_FAIL(ddl_operator.replace_sys_variable(
+      sys_variable, new_schema_version, trans, OB_DDL_ALTER_SYS_VAR))) {
+      LOG_WARN("fail to replace sys variable", KR(ret), K(sys_variable));
+      } else if (OB_FAIL(ddl_operator.init_tenant_env(tenant_schema, sys_variable, tenant_role,
+      recovery_until_scn, init_configs, trans))) {
+      LOG_WARN("init tenant env failed", KR(ret), K(tenant_role), K(recovery_until_scn), K(tenant_schema));
+      } else if (OB_FAIL(ddl_operator.insert_tenant_merge_info(OB_DDL_ADD_TENANT_START, tenant_schema, trans))) {
+      LOG_WARN("fail to insert tenant merge info", KR(ret), K(tenant_schema));
+      } else if (is_meta_tenant(tenant_id) && OB_FAIL(ObServiceEpochProxy::init_service_epoch(
+      trans,
+      tenant_id,
+      0, /*freeze_service_epoch*/
+      0, /*arbitration_service_epoch*/
+      0, /*server_zone_op_service_epoch*/
+      0 /*heartbeat_service_epoch*/))) {
+      LOG_WARN("fail to init service epoch", KR(ret));
+      } else if (is_creating_standby && OB_FAIL(set_log_restore_source(gen_user_tenant_id(tenant_id), log_restore_source, trans))) {
+      LOG_WARN("fail to set_log_restore_source", KR(ret), K(tenant_id), K(log_restore_source));
+      }
+      LOG_INFO("[CREATE_TENANT] init_tenant_schema_step4 start", KR(ret), K(tenant_id));//23083- 1011ms
+      if (trans.is_started()) {
+      int temp_ret = OB_SUCCESS;
+      bool commit = OB_SUCC(ret);
+      if (OB_SUCCESS != (temp_ret = trans.end(commit))) {
+      ret = (OB_SUCC(ret)) ? temp_ret : ret;
+      LOG_WARN("trans end failed", K(commit), K(temp_ret));
+      }
+      }
+
+      if (OB_SUCC(ret) && is_meta_tenant(tenant_id)) {
+      // If tenant config version in RS is valid first and ddl trans doesn't commit,
+      // observer may read from empty __tenant_parameter successfully and raise its tenant config version,
+      // which makes some initial tenant configs are not actually updated before related observer restarts.
+      // To fix this problem, tenant config version in RS should be valid after ddl trans commits.
+      const int64_t config_version = omt::ObTenantConfig::INITIAL_TENANT_CONF_VERSION + 1;
+      const uint64_t user_tenant_id = gen_user_tenant_id(tenant_id);
+      if (OB_FAIL(OTC_MGR.set_tenant_config_version(tenant_id, config_version))) {
+      LOG_WARN("failed to set tenant config version", KR(ret), K(tenant_id));
+      } else if (OB_FAIL(OTC_MGR.set_tenant_config_version(user_tenant_id, config_version))) {
+      LOG_WARN("failed to set tenant config version", KR(ret), K(user_tenant_id));
+      }
+      }
+
+      ObLSInfo sys_ls_info;
+      ObAddrArray addrs;
+      if (FAILEDx(GCTX.lst_operator_->get(
+      GCONF.cluster_id,
+      tenant_id,
+      SYS_LS,
+      share::ObLSTable::DEFAULT_MODE,
+      sys_ls_info))) {
+      LOG_WARN("fail to get sys ls info by operator", KR(ret), K(tenant_id));
+      } else if (OB_FAIL(sys_ls_info.get_paxos_member_addrs(addrs))) {
+      LOG_WARN("fail to get paxos member addrs", K(ret), K(tenant_id), K(sys_ls_info));
+      } else if (OB_FAIL(publish_schema(tenant_id, addrs))) {
+      LOG_WARN("fail to publish schema", KR(ret), K(tenant_id), K(addrs));
+      }
+
+      LOG_INFO("[CREATE_TENANT] init_tenant_schema_step5 start", KR(ret), K(tenant_id));//23119- 283ms
+      // 3. set baseline schema version
+      if (OB_SUCC(ret)) {
+      ObGlobalStatProxy global_stat_proxy(*sql_proxy_, tenant_id);
+      ObRefreshSchemaStatus schema_status;
+      schema_status.tenant_id_ = tenant_id;
+      int64_t baseline_schema_version = OB_INVALID_VERSION;
+      if (OB_FAIL(schema_service_->get_schema_version_in_inner_table(
+      *sql_proxy_, schema_status, baseline_schema_version))) {
+      LOG_WARN("fail to gen new schema version", KR(ret), K(schema_status));
+      } else if (OB_FAIL(global_stat_proxy.set_baseline_schema_version(baseline_schema_version))) {
+      LOG_WARN("fail to set baseline schema version",
+      KR(ret), K(tenant_id), K(baseline_schema_version));
+      }
+      }
+
+
+      }
+
+
+
+
+
     while(!is_finish){
       ob_usleep(1000);
     }

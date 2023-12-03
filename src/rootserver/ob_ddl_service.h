@@ -2176,7 +2176,17 @@ private:
       ObDDLOperator &ddl_operator,
       ObMySQLTransaction &trans,
       common::ObIArray<share::schema::ObTableSchema> &tables,
-      const uint64_t tenant_id);
+      const uint64_t tenant_id,
+      ObSchemaService *schema_service_impl,
+      const int64_t  init_schema_version,
+      int64_t new_schema_version,
+      const ObTenantSchema &tenant_schema,
+      const share::ObTenantRole &tenant_role,
+      const SCN &recovery_until_scn,
+      ObSysVariableSchema &sys_variable,
+      const common::ObIArray<common::ObConfigPairs> &init_configs,
+      bool is_creating_standby,
+      const common::ObString &log_restore_source);
   int try_force_drop_tenant(const share::schema::ObTenantSchema &tenant_schema);
 
   int handle_security_audit_in_trans(const share::schema::ObSAuditSchema &audit_schema,
