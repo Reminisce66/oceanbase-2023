@@ -31,9 +31,11 @@ namespace oceanbase
 namespace logservice
 {
 class ObLogService;
+class myThreadPool;
 class ObServerLogBlockMgr : public palf::ILogBlockPool
 {
 public:
+  friend class myThreadPool;
   static int check_clog_directory_is_empty(const char *clog_dir, bool &result);
 private:
   static const char *LOG_POOL_PATH;
@@ -336,6 +338,57 @@ private:
 
 private:
   DISALLOW_COPY_AND_ASSIGN(ObServerLogBlockMgr);
+};
+class CreateFileTask {
+public:
+    CreateFileTask():start_(0),end_(0){}
+    CreateFileTask(const CreateFileTask& task):start_(task.start_),end_(task.end_){}
+    CreateFileTask(int64_t start,int64_t end):start_(start),end_(end){}
+    void set(int64_t start,int64_t end){start_=start;end_=end;}
+    int64_t start_;
+    int64_t end_;
+};
+class myThreadPool :public ThreadPool {
+    static const int64_t QUEUE_WAIT_TIME = 100 * 1000;
+    static const int64_t MAX_THREAD_NUM = 256;
+public:
+    myThreadPool(bool &is_finish,ObServerLogBlockMgr *mgr,const palf::FileDesc &dir_fd,int task_nums):is_inited_(false),is_finish_(is_finish),mgr_(mgr),dir_fd_(dir_fd),task_nums_(task_nums)
+    /*trans_(&(ddl_service_.get_schema_service()), true, true, false, false),
+    ddl_operator_(ddl_service_.get_schema_service(),ddl_service_.get_sql_proxy())*/{
+        /*int64_t refreshed_schema_version = 0;
+        int ret=OB_SUCCESS;
+        if(OB_FAIL(trans_.start(&ddl_service_.get_sql_proxy(),
+                                OB_SYS_TENANT_ID,
+                                refreshed_schema_version))) {
+            LOG_WARN("start transaction failed", KR(ret));
+        }*/
+    }
+    virtual ~myThreadPool();
+
+    int init(const int64_t thread_num, const int64_t task_num_limit, const char *name = "unknown");
+    void destroy();
+    int push(void *task);
+    int64_t get_queue_num() const { return queue_.size(); }
+
+private:
+    void handle(void *task); // 处理任务
+    void handle_drop(void *task) { handle(task); }
+
+protected:
+    void run1();
+
+private:
+    const char* name_;
+    bool is_inited_;
+    ObLightyQueue queue_;
+    int64_t total_thread_num_;
+    bool &is_finish_;
+    ObServerLogBlockMgr*mgr_;
+    const palf::FileDesc &dir_fd_;
+    int task_nums_;
+    //ObDDLSQLTransaction trans_;
+    //ObDDLOperator ddl_operator_;
+
 };
 } // namespace logservice
 } // namespace oceanbase

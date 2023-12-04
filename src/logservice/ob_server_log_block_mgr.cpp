@@ -1091,7 +1091,7 @@ int ObServerLogBlockMgr::allocate_blocks_at_tmp_dir_(const FileDesc &dir_fd,
   int ret = OB_SUCCESS;
   int64_t remain_block_cnt = block_cnt;
   block_id_t block_id = start_block_id;
-  while (OB_SUCC(ret) && remain_block_cnt > 0) {
+  /*while (OB_SUCC(ret) && remain_block_cnt > 0) {
     if (OB_FAIL(allocate_block_at_tmp_dir_(dir_fd, block_id))) {
       CLOG_LOG(ERROR, "allocate_block_at_tmp_dir_ failed", K(ret), KPC(this), K(dir_fd),
                K(block_id));
@@ -1099,20 +1099,87 @@ int ObServerLogBlockMgr::allocate_blocks_at_tmp_dir_(const FileDesc &dir_fd,
       remain_block_cnt--;
       block_id++;
     }
-  }
-  /*int64_t mid=block_cnt/2;
-  std::thread thread1([this, &mid, &dir_fd]() {
-        for (int block_id = 0; block_id < mid;block_id++) {
+  }*/
+  /*int64_t batch=block_cnt/5;
+  int64_t start=0,end=batch;
+  std::thread thread1([this, start,end, &dir_fd]() {
+        for (int block_id = start; block_id < end;block_id++) {
             allocate_block_at_tmp_dir_(dir_fd, block_id);
         }
   });
-  std::thread thread2([this, &block_cnt, &dir_fd, &mid]() {
-        for (int block_id = mid; block_id < block_cnt;block_id++) {
+  start=start+batch;
+  end=end+batch;
+  std::thread thread2([this, start,end, &dir_fd]() {
+        for (int block_id = start; block_id < end;block_id++) {
             allocate_block_at_tmp_dir_(dir_fd, block_id);
         }
+  });
+    start=start+batch;
+    end=end+batch;
+    std::thread thread3([this, start,end, &dir_fd]() {
+        for (int block_id = start; block_id < end;block_id++) {
+            allocate_block_at_tmp_dir_(dir_fd, block_id);
+        }
+    });
+    start=start+batch;
+    end=end+batch;
+    std::thread thread4([this, start,end, &dir_fd]() {
+        for (int block_id = start; block_id < end;block_id++) {
+            allocate_block_at_tmp_dir_(dir_fd, block_id);
+        }
+    });
+  start=start+batch;
+  end=block_cnt;
+  std::thread thread5([this, start,end, &dir_fd]() {
+      for (int block_id = start; block_id < end;block_id++) {
+          allocate_block_at_tmp_dir_(dir_fd, block_id);
+      }
   });
   thread1.join();
-  thread2.join();*/
+  thread2.join();
+  thread3.join();
+  thread4.join();
+  thread5.join();*/
+
+
+    int64_t begin = 0;
+    int64_t batch_count = 16;
+    bool is_finish=false;
+    int task_num=block_cnt/batch_count;
+    if(block_cnt%batch_count!=0){
+        task_num+=1;
+    }
+
+    myThreadPool pool(is_finish,this,dir_fd,task_num);
+    if(OB_FAIL(pool.init(8,1000,"create_schema"))) {
+
+    }
+    if(OB_FAIL(pool.start())){
+    }
+    CreateFileTask tasks [task_num];
+    int task_number=0;
+
+    for (int64_t i = 0; OB_SUCC(ret) && i < block_cnt; ++i) {
+        if (block_cnt == (i + 1) || (i + 1 - begin) >= batch_count) {
+            //CreateSchemaTask task(begin,i+1);
+            //LOG_WARN("task spec 1",K(task.start_),K(task.end_));
+            tasks[task_number].set(start_block_id+begin,start_block_id+i+1);
+
+            if(OB_FAIL(pool.push((void*)&tasks[task_number]))){
+
+            }
+            task_number++;
+
+            if (OB_SUCC(ret)) {
+                begin = i + 1;
+            }
+        }
+    }
+    while(!is_finish){
+        ob_usleep(1000);
+    }
+    pool.destroy();
+
   if (-1 == ::fsync(dir_fd)) {
     int tmp_ret = convert_sys_errno();
     CLOG_LOG(ERROR, "::fsync failed", K(ret), K(tmp_ret), KPC(this), K(dir_fd));
@@ -1564,6 +1631,107 @@ DEFINE_GET_SERIALIZE_SIZE(ObServerLogBlockMgr::LogPoolMetaEntry)
   size += log_pool_meta_.get_serialize_size();
   size += serialization::encoded_length_i64(sizeof(checksum_));
   return size;
+}
+
+
+myThreadPool::~myThreadPool()
+{
+    if (is_inited_) {
+        destroy();
+    }
+}
+
+int myThreadPool::init(const int64_t thread_num, const int64_t task_num_limit, const char* name)
+{
+    int ret = OB_SUCCESS;
+    if (is_inited_) {
+        ret = OB_INIT_TWICE;
+    } else if (thread_num <= 0 || task_num_limit <= 0 || thread_num > MAX_THREAD_NUM || OB_ISNULL(name)) {
+        ret = OB_INVALID_ARGUMENT;
+    } else if (OB_FAIL(queue_.init(task_num_limit, name, MTL_ID()))) {
+    } else {
+        is_inited_ = true;
+        name_ = name;
+        total_thread_num_ = thread_num;
+        set_thread_count(thread_num);
+        set_run_wrapper(MTL_CTX());
+        set_thread_name(name,0);
+
+    }
+    if (OB_FAIL(ret)) {
+        destroy();
+    } else {
+    }
+    return ret;
+}
+
+void myThreadPool::destroy()
+{
+    is_inited_ = false;
+    lib::ThreadPool::stop();
+    lib::ThreadPool::wait();
+    queue_.destroy();
+}
+
+int myThreadPool::push(void *task)
+{
+
+
+    int ret = OB_SUCCESS;
+    if (!is_inited_) {
+        ret = OB_NOT_INIT;
+    } else if (NULL == task) {
+        ret = OB_INVALID_ARGUMENT;
+    } else if (has_set_stop()) {
+        ret = OB_IN_STOP_STATE;
+    } else {
+
+        ret = queue_.push(task);
+        if (OB_SIZE_OVERFLOW == ret) {
+            ret = OB_EAGAIN;
+        }
+    }
+    return ret;
+}
+void myThreadPool::run1(){
+    int ret = OB_SUCCESS;
+    if (OB_NOT_NULL(name_)) {
+        lib::set_thread_name(name_);
+    }
+    int64_t wait_time=0;
+    while (!is_finish_&&!has_set_stop() && !(OB_NOT_NULL(&lib::Thread::current()) ? lib::Thread::current().has_set_stop() : false)) {
+        void *task = NULL;
+        if (OB_SUCC(queue_.pop(task, 1000))) {
+            handle(task);
+            ATOMIC_DEC(&task_nums_);
+            wait_time=0;
+        }else {
+            if(wait_time>10){
+                break;
+            }
+            wait_time++;
+        }
+        if(ATOMIC_LOAD(&task_nums_)==0){
+            is_finish_=true;
+            //trans_.end(true);
+        }
+    }
+
+    if (has_set_stop()) {
+        void *task = NULL;
+        while (OB_SUCC(queue_.pop(task))) {
+            handle_drop(task);
+        }
+    }
+}
+void myThreadPool::handle(void *task){
+    int ret = OB_SUCCESS;
+    auto *t=reinterpret_cast<CreateFileTask *>(task);
+    for(int i=t->start_;i<t->end_;i++){
+        mgr_->allocate_block_at_tmp_dir_(dir_fd_, i);
+    }
+
+
 }
 } // namespace logservice
 } // namespace oceanbase
