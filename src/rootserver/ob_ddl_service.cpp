@@ -23205,7 +23205,7 @@ int ObDDLService::init_tenant_schema(
         }
       }*/
 
-      /*ObLSInfo sys_ls_info;
+      ObLSInfo sys_ls_info;
       ObAddrArray addrs;
       if (FAILEDx(GCTX.lst_operator_->get(
           GCONF.cluster_id,
@@ -23218,11 +23218,11 @@ int ObDDLService::init_tenant_schema(
         LOG_WARN("fail to get paxos member addrs", K(ret), K(tenant_id), K(sys_ls_info));
       } else if (OB_FAIL(publish_schema(tenant_id, addrs))) {
         LOG_WARN("fail to publish schema", KR(ret), K(tenant_id), K(addrs));
-      }*/
+      }
     }
-    //LOG_INFO("[CREATE_TENANT] init_tenant_schema_step5 start", KR(ret),K(tenant_id));//23119- 283ms
+    LOG_INFO("[CREATE_TENANT] init_tenant_schema_step5 start", KR(ret),K(tenant_id));//23119- 283ms
     // 3. set baseline schema version
-    /*if (OB_SUCC(ret)) {
+    if (OB_SUCC(ret)) {
       ObGlobalStatProxy global_stat_proxy(*sql_proxy_, tenant_id);
       ObRefreshSchemaStatus schema_status;
       schema_status.tenant_id_ = tenant_id;
@@ -23234,7 +23234,7 @@ int ObDDLService::init_tenant_schema(
         LOG_WARN("fail to set baseline schema version",
                  KR(ret), K(tenant_id), K(baseline_schema_version));
       }
-    }*/
+    }
   }
 
   LOG_INFO("[CREATE_TENANT] STEP 2.4. finish init tenant schemas", KR(ret), K(tenant_id),//1223ms
@@ -23393,7 +23393,7 @@ int ObDDLService::create_sys_table_schemas(
       }
       }
 
-      ObLSInfo sys_ls_info;
+      /*ObLSInfo sys_ls_info;
       ObAddrArray addrs;
       if (FAILEDx(GCTX.lst_operator_->get(
       GCONF.cluster_id,
@@ -23422,7 +23422,7 @@ int ObDDLService::create_sys_table_schemas(
       LOG_WARN("fail to set baseline schema version",
       KR(ret), K(tenant_id), K(baseline_schema_version));
       }
-      }
+      }*/
 
 
       }
