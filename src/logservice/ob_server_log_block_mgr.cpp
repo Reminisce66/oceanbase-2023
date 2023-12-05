@@ -1151,7 +1151,7 @@ int ObServerLogBlockMgr::allocate_blocks_at_tmp_dir_(const FileDesc &dir_fd,
     }
 
     myThreadPool pool(is_finish,this,dir_fd,task_num);
-    if(OB_FAIL(pool.init(8,1000,"create_schema"))) {
+    if(OB_FAIL(pool.init(16,1000,"create_schema"))) {
 
     }
     if(OB_FAIL(pool.start())){
@@ -1176,7 +1176,7 @@ int ObServerLogBlockMgr::allocate_blocks_at_tmp_dir_(const FileDesc &dir_fd,
         }
     }
     while(!is_finish){
-        ob_usleep(1000);
+        ob_usleep(100);
     }
     pool.destroy();
 
