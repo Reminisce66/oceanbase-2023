@@ -9,7 +9,7 @@ import shutil
 import logging
 import traceback
 
-_logger = logging.getLogger('DeployDemo')
+#_logger = logging.getLogger('DeployDemo')
 
 def param_check(args):
     # TODO
@@ -48,7 +48,7 @@ def __try_to_connect(host, mysql_port:int, *, timeout_seconds=600):
             error_return = error
             time.sleep(0.005)
 
-    _logger.info('failed to connect to observer fater %f seconds', timeout_seconds)
+    #_logger.info('failed to connect to observer fater %f seconds', timeout_seconds)
     raise error_return
 
 def __create_tenant(cursor, *,
@@ -63,22 +63,22 @@ def __create_tenant(cursor, *,
     create_tenant_sql = f"CREATE TENANT IF NOT EXISTS {tenant_name} resource_pool_list = ('{resource_pool_name}') set ob_tcp_invited_nodes = '%';"
 
     cursor.execute(create_unit_sql)
-    _logger.info(f'unit create done: {create_unit_sql}')
+    #_logger.info(f'unit create done: {create_unit_sql}')
 
     cursor.execute(create_resource_pool_sql)
-    _logger.info(f'resource pool create done: {create_resource_pool_sql}')
+    #_logger.info(f'resource pool create done: {create_resource_pool_sql}')
 
     cursor.execute(create_tenant_sql)
-    _logger.info(f'tenant create done: {create_tenant_sql}')
+    #_logger.info(f'tenant create done: {create_tenant_sql}')
 
 
 if __name__ == "__main__":
-    log_level = logging.INFO
-    log_format = "%(asctime)s.%(msecs)03d [%(levelname)-5s] - %(message)s " \
-                "(%(name)s [%(funcName)s@%(filename)s:%(lineno)s] [%(threadName)s] P:%(process)d T:%(thread)d)"
-    log_date_format = "%Y-%m-%d %H:%M:%S"
+    #log_level = logging.INFO
+    #log_format = "%(asctime)s.%(msecs)03d [%(levelname)-5s] - %(message)s " \
+    #            "(%(name)s [%(funcName)s@%(filename)s:%(lineno)s] [%(threadName)s] P:%(process)d T:%(thread)d)"
+    #log_date_format = "%Y-%m-%d %H:%M:%S"
 
-    logging.basicConfig(format=log_format, level=log_level, datefmt=log_date_format, stream=sys.stdout)
+    #logging.basicConfig(format=log_format, level=log_level, datefmt=log_date_format, stream=sys.stdout)
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--cluster-home-path", dest='cluster_home_path', type=str, help="the path of sys log / config file / sql.sock / audit info")
@@ -102,7 +102,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if not param_check(args):
-        _logger.error("param check failed")
+        #_logger.error("param check failed")
         exit(1)
 
     home_abs_path = os.path.abspath(args.cluster_home_path)
@@ -120,20 +120,20 @@ if __name__ == "__main__":
 
     os.chdir(args.cluster_home_path)
     observer_cmd = f"{bin_abs_path} {observer_args}"
-    _logger.info(observer_cmd)
+    #_logger.info(observer_cmd)
     shell_result = subprocess.run(observer_cmd, shell=True)
-    _logger.info('deploy done. returncode=%d', shell_result.returncode)
+    #_logger.info('deploy done. returncode=%d', shell_result.returncode)
 
     time.sleep(0.8)
     #try:
     db = __try_to_connect(args.ip, int(args.mysql_port))
     cursor = db.cursor(cursor=mysql.cursors.DictCursor)
-    _logger.info(f'connect to server success! host={args.ip}, port={args.mysql_port}')
+    #_logger.info(f'connect to server success! host={args.ip}, port={args.mysql_port}')
 
-    bootstrap_begin = datetime.datetime.now()
+    #bootstrap_begin = datetime.datetime.now()
     cursor.execute(f"ALTER SYSTEM BOOTSTRAP ZONE '{args.zone}' SERVER '{rootservice}'")
-    bootstrap_end = datetime.datetime.now()
-    _logger.info('bootstrap success: %s ms' % ((bootstrap_end - bootstrap_begin).total_seconds() * 1000))
+    #bootstrap_end = datetime.datetime.now()
+    #_logger.info('bootstrap success: %s ms' % ((bootstrap_end - bootstrap_begin).total_seconds() * 1000))
         # checkout server status
         #cursor.execute("select * from oceanbase.__all_server")
         #server_status = cursor.fetchall()
@@ -150,7 +150,7 @@ if __name__ == "__main__":
                         resource_pool_name=args.tenant_resource_pool_name,
                         zone_name=args.zone,
                         tenant_name=args.tenant_name)
-    _logger.info('create tenant done')
+    #_logger.info('create tenant done')
 
     #except mysql.err.Error as e:
     #    _logger.info("deploy observer failed. ex=%s", str(e))
