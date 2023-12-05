@@ -133,29 +133,19 @@ int ObLogService::start()
   int ret = OB_SUCCESS;
   if (OB_FAIL(apply_service_.start())) {//370
     CLOG_LOG(WARN, "failed to start apply_service_", K(ret));
-  }
-    CLOG_LOG(WARN, "sucess to start apply_service_", K(ret));
-  if (OB_FAIL(replay_service_.start())) {//610
+  } else if (OB_FAIL(replay_service_.start())) {//610
     CLOG_LOG(WARN, "failed to start replay_service_", K(ret));
-  }
-    CLOG_LOG(WARN, "sucess to start replay_service_", K(ret));
-  if (OB_FAIL(role_change_service_.start())) {
+  } else if (OB_FAIL(role_change_service_.start())) {
     CLOG_LOG(WARN, "failed to start role_change_service_", K(ret));
-  }
-    CLOG_LOG(WARN, "sucess to start replay_service_", K(ret));
-  if (OB_FAIL(cdc_service_.start())) {
+  } else if (OB_FAIL(cdc_service_.start())) {
     CLOG_LOG(WARN, "failed to start cdc_service_", K(ret));
-  }
-    CLOG_LOG(WARN, "sucess to start replay_service_", K(ret));
-  if (OB_FAIL(restore_service_.start())) {
+  } else if (OB_FAIL(restore_service_.start())) {
     CLOG_LOG(WARN, "failed to start restore_service_", K(ret));
 #ifdef OB_BUILD_ARBITRATION
   } else if (OB_FAIL(arb_service_.start())) {
     CLOG_LOG(WARN, "failed to start arb_service_", K(ret));
 #endif
-  }
-    CLOG_LOG(WARN, "sucess to start replay_service_", K(ret));
-  {
+  } else {
     is_running_ = true;
     FLOG_INFO("ObLogService is started");
   }
