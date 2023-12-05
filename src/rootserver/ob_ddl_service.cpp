@@ -22201,7 +22201,7 @@ int ObDDLService::create_tenant_schema(
                  OB_DDL_ADD_TENANT_START, trans, &arg.ddl_stmt_str_))) {
         LOG_WARN("create tenant failed", KR(ret), K(user_tenant_schema));
       }
-      LOG_INFO("[CREATE_TENANT] STEP 1.1. finish create tenant schema", KR(ret), K(arg),
+      LOG_INFO("[CREATE_TENANT] STEP 1.1. finish create tenant schema", KR(ret), K(arg),//5ms
                "cost", ObTimeUtility::fast_current_time() - tmp_start_time);
     }
 
@@ -22240,10 +22240,9 @@ int ObDDLService::create_tenant_schema(
                          false/*is_bootstrap*/))) {
         LOG_WARN("grant_pools_to_tenant failed", KR(ret), K(pools), K(user_tenant_id));
       }
-      LOG_INFO("[CREATE_TENANT] STEP 1.2. finish grant pools", KR(ret), K(user_tenant_id),
+      LOG_INFO("[CREATE_TENANT] STEP 1.2. finish grant pools", KR(ret), K(user_tenant_id),//500ms
                "cost", ObTimeUtility::fast_current_time() - tmp_start_time);
     }
-
     // 3. persist initial tenant config
     if (OB_SUCC(ret)) {
       LOG_INFO("[CREATE_TENANT] STEP 1.3. start persist tenant config", K(user_tenant_id));

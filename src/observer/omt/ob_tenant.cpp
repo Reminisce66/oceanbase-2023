@@ -667,7 +667,7 @@ int ObTenant::init(const ObTenantMeta &meta)
     update_mini_mode(memory_size <= MINI_MEM_UPPER);
 
     if (!is_virtual_tenant_id(id_)) {
-      if (OB_FAIL(create_tenant_module())) {
+      if (OB_FAIL(create_tenant_module())) {//主要耗时
         // do nothing
       } else if (OB_FAIL(OB_PX_TARGET_MGR.add_tenant(id_))) {
         LOG_WARN("add tenant into px target mgr failed", K(ret), K(id_));
@@ -837,22 +837,22 @@ int ObTenant::create_tenant_module()
   // set tenant init param
   FLOG_INFO("begin create mtl module>>>>", K(tenant_id), K(MTL_ID()));
 
-  if (OB_FAIL(ObTenantBase::create_mtl_module())) {
+  if (OB_FAIL(ObTenantBase::create_mtl_module())) {//3542us
     LOG_ERROR("create mtl module failed", K(tenant_id), K(ret));
-  } else if (FALSE_IT(ObTenantEnv::set_tenant(this))) {
+  } else if (FALSE_IT(ObTenantEnv::set_tenant(this))) {//20us
     // 上面通过ObTenantSwitchGuard中会创建一个新的TenantBase线程局部变量，而不是存TenantBase的指针，
     // 目的是通过MTL()访问时减少一次内存跳转，但是设置的时mtl模块的指针还是nullptr, 所以在mtl创建完成时
     // 还需要设置一次。
-  } else if (OB_FAIL(ObTenantBase::init_mtl_module())) {
+  } else if (OB_FAIL(ObTenantBase::init_mtl_module())) {//27856
     LOG_ERROR("init mtl module failed", K(tenant_id), K(ret));
-  } else if (OB_FAIL(ObTenantBase::start_mtl_module())) {
+  } else if (OB_FAIL(ObTenantBase::start_mtl_module())) {//主要耗时 186ms,mtl12 16
     LOG_ERROR("start mtl module failed", K(tenant_id), K(ret));
-  } else if (OB_FAIL(update_thread_cnt(max_cpu))) {
+  } else if (OB_FAIL(update_thread_cnt(max_cpu))) {//829
     LOG_ERROR("update mtl module thread cnt fail", K(tenant_id), K(ret));
   }
 
 
-  FLOG_INFO("finish create mtl module>>>>", K(tenant_id), K(MTL_ID()), K(ret));
+  FLOG_INFO("finish create mtl module>>>>", K(tenant_id), K(MTL_ID()), K(ret));//219083
 
   if (OB_FAIL(ret)) {
     ObTenantBase::stop_mtl_module();

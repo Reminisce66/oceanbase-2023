@@ -958,7 +958,7 @@ int ObMultiTenant::create_tenant(const ObTenantMeta &meta, bool write_slog, cons
   if (OB_SUCC(ret)) {
     CREATE_WITH_TEMP_ENTITY(RESOURCE_OWNER, tenant->id()) {
       WITH_ENTITY(&tenant->ctx()) {
-        if (OB_FAIL(tenant->init(meta))) {
+        if (OB_FAIL(tenant->init(meta))) {//主要耗时
           LOG_ERROR("init tenant fail", K(tenant_id), K(ret));
         }
       }

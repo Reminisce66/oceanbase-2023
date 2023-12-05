@@ -188,7 +188,7 @@ int ObCdcService::start()
   if (IS_NOT_INIT) {
     ret = OB_NOT_INIT;
     EXTLOG_LOG(WARN, "ObCdcService not init", K(ret));
-  } else if (OB_FAIL(log_ext_handler_.start(0))) {
+  } else if (OB_FAIL(log_ext_handler_.start(1))) {
     EXTLOG_LOG(WARN, "log ext handler start failed", K(ret));
   } else if (OB_FAIL(start_tenant_tg_(MTL_ID()))) {
     EXTLOG_LOG(ERROR, "start CDCService failed", KR(ret));
