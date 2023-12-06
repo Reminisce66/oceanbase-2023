@@ -493,7 +493,9 @@ int LogReconfirm::reconfirm()
           last_purge_throttling_time_us_ = OB_INVALID_TIMESTAMP;
           PALF_EVENT("Reconfirm come into FETCH_MAX_LOG_LSN state", palf_id_, K_(self), K_(majority_max_accept_pid));
         }
-        break;
+        if (state_ != FETCH_MAX_LOG_LSN) {
+           break;
+        }
       }
       case FETCH_MAX_LOG_LSN: {
 				const int64_t cost_ts = ObTimeUtility::current_time() - last_submit_prepare_req_time_us_;
@@ -550,7 +552,9 @@ int LogReconfirm::reconfirm()
           PALF_EVENT("Reconfirm come into RECONFIRMING state", palf_id_, K_(self));
         }
         // need break because next state requires wlock
-        break;
+        if (state_ != RECONFIRMING) {
+          break;
+        }
       }
       case RECONFIRMING: {
         LSN last_lsn;

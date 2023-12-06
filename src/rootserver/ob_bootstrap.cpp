@@ -243,7 +243,7 @@ int ObPreBootstrap::prepare_bootstrap(ObAddr &master_rs)
 
   begin_ts_ = ObTimeUtility::current_time();
   int64_t my_begin_ts=begin_ts_;
-  if (OB_FAIL(check_inner_stat())) {
+  /*if (OB_FAIL(check_inner_stat())) {
     LOG_WARN("check_inner_stat failed", KR(ret));
   } else if (OB_FAIL(check_bootstrap_rs_list(rs_list_))) {
     LOG_WARN("failed to check_bootstrap_rs_list", KR(ret), K_(rs_list));
@@ -257,7 +257,7 @@ int ObPreBootstrap::prepare_bootstrap(ObAddr &master_rs)
   } else if (!is_empty) {
     ret = OB_INIT_TWICE;
     LOG_WARN("cannot do bootstrap on not empty server", KR(ret));
-  } else if (OB_FAIL(notify_sys_tenant_root_key())) {
+  } else*/ if (OB_FAIL(notify_sys_tenant_root_key())) {
     LOG_WARN("fail to notify sys tenant root key", KR(ret));
   } else if (OB_FAIL(notify_sys_tenant_server_unit_resource())) {//2.3 cost=3097
     LOG_WARN("fail to notify sys tenant server unit resource", KR(ret));

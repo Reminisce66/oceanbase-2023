@@ -22809,6 +22809,7 @@ int ObDDLService::create_tenant_sys_ls(
       if (OB_FAIL(ObSchemaUtils::construct_inner_table_schemas(tenant_id, tables))) {
       LOG_WARN("fail to get inner table schemas in tenant space", KR(ret), K(tenant_id));
     }
+      LOG_INFO("start to wait");
       int64_t wait_leader_start = ObTimeUtility::current_time();
       if (OB_FAIL(ls_leader_waiter.wait(tenant_id, SYS_LS, timeout))) {
         LOG_WARN("fail to wait election leader", KR(ret), K(tenant_id), K(SYS_LS), K(timeout));

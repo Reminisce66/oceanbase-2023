@@ -111,7 +111,7 @@ int ObLSLeaderElectionWaiter::wait(
     LOG_WARN("invalid argument", KR(ret), K(tenant_id), K(ls_id), K(timeout));
   } else {
     if (OB_FAIL(wait_elect_leader(
-            tenant_id, ls_id, CHECK_LEADER_ELECT_INTERVAL_US, abs_timeout, leader))) {
+            tenant_id, ls_id, 1000, abs_timeout, leader))) {
       LOG_WARN("fail to wait elect leader",
                KR(ret), K(tenant_id), K(ls_id), K(timeout), K(abs_timeout));
     }

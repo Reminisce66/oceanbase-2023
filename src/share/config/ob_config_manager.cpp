@@ -274,13 +274,14 @@ int ObConfigManager::dump2file(const char* path) const
           if (0 != close(fd)) {
             LOG_WARN("fail to close file fd", K(fd), K(errno), KERRMSG, K(ret));
           }
-        } else if (::fsync(fd) != 0) {
+        }/* else if (::fsync(fd) != 0) {
           ret = OB_IO_ERROR;
           LOG_WARN("Sync server config fail!", K(errno), KERRMSG, K(pos), K(size), K(ret));
           if (0 != close(fd)) {
             LOG_WARN("fail to close file fd", K(fd), K(errno), KERRMSG, K(ret));
           }
-        } else if (0 != close(fd)) {
+        } */
+	  else if (0 != close(fd)) {
           ret = OB_IO_ERROR;
           LOG_WARN("fail to close file fd", K(fd), KERRMSG, K(ret));
         } else {
