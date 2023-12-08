@@ -453,8 +453,8 @@ int ObSchemaUtils::construct_inner_table_schemas(
       all_core_table_schema_creator,
       core_table_schema_creators,
       sys_table_schema_creators,
-      virtual_table_schema_creators,
-      sys_view_schema_creators
+      //virtual_table_schema_creators,
+      //sys_view_schema_creators
     };
     HEAP_VARS_2((ObTableSchema, table_schema), (ObTableSchema, data_schema)) {
       for (int64_t i = 0; OB_SUCC(ret) && i < ARRAYSIZEOF(creator_ptr_arrays); ++i) {
