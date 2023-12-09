@@ -1133,7 +1133,7 @@ int ObTableSqlService::add_columns_for_core(ObISQLClient &sql_client, const ObTa
       if (OB_FAIL(dml.add_column("is_deleted", is_deleted))) {
         LOG_WARN("add column failed", K(ret));
       } else if (stash_desc->get_stash_query().empty()) {
-        if (OB_FAIL(dml.splice_insert_sql_without_plancache(OB_ALL_COLUMN_HISTORY_TNAME, stash_desc->get_stash_query()))) {
+        if (OB_FAIL(dml.splice_insert_sql_(OB_ALL_COLUMN_HISTORY_TNAME, stash_desc->get_stash_query()))) {
           LOG_WARN("dml splice_insert_sql fail", K(ret));
         }
       } else {
@@ -1229,13 +1229,13 @@ int ObTableSqlService::add_columns_for_not_core(ObISQLClient &sql_client,
       if (OB_FAIL(gen_column_dml(exec_tenant_id, column, dml))) {
         LOG_WARN("gen_column_dml failed", K(column), K(ret));
       } else if (column_sql.empty()) {
-        if (OB_FAIL(dml.splice_insert_sql_without_plancache(OB_ALL_COLUMN_TNAME, column_sql))) {
+        if (OB_FAIL(dml.splice_insert_sql_(OB_ALL_COLUMN_TNAME, column_sql))) {
           LOG_WARN("splice_insert_sql failed", "table_name", OB_ALL_COLUMN_TNAME, K(ret));
         } else {
           const int64_t is_deleted = 0;
           if (OB_FAIL(dml.add_column("is_deleted", is_deleted))) {
             LOG_WARN("dml add column failed", K(ret));
-          } else if (OB_FAIL(dml.splice_insert_sql_without_plancache(
+          } else if (OB_FAIL(dml.splice_insert_sql_(
                   OB_ALL_COLUMN_HISTORY_TNAME, column_history_sql))) {
             LOG_WARN("splice_insert_sql failed", "table_name", OB_ALL_COLUMN_HISTORY_TNAME, K(ret));
           }
@@ -1261,9 +1261,10 @@ int ObTableSqlService::add_columns_for_not_core(ObISQLClient &sql_client,
       if(enable_stash_query){
           stash_desc->add_row_cnt(1);
           stash_desc2->add_row_cnt(1);
-          if(stash_desc->get_row_cnt()>20){
+          if(stash_desc->get_row_cnt()>200){
               trans->do_stash_query();
-              
+	      stash_desc->set_tenant_id(tenant_id);
+              stash_desc2->set_tenant_id(tenant_id); 
           }
       }
 

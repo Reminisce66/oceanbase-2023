@@ -105,6 +105,7 @@ public:
 
   /// functions to splice sql string:
   int splice_insert_sql(const char *table_name, common::ObSqlString &sql) const;
+  int splice_insert_sql_(const char *table_name, common::ObSqlString &sql) const;
   int splice_insert_sql_without_plancache(const char *table_name, common::ObSqlString &sql) const;
   int splice_insert_ignore_sql(const char *table_name, common::ObSqlString &sql) const;
   int splice_insert_update_sql(const char *table_name, common::ObSqlString &sql) const;

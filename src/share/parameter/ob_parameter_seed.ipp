@@ -375,7 +375,7 @@ DEF_INT(writing_throttling_trigger_percentage, OB_TENANT_PARAMETER, "60", "(0, 1
 DEF_TIME(writing_throttling_maximum_duration, OB_TENANT_PARAMETER, "2h", "[1s, 3d]",
           "maximum duration of writting throttling(in minutes), max value is 3 days",
           ObParameterAttr(Section::TRANS, Source::DEFAULT, EditLevel::DYNAMIC_EFFECTIVE));
-DEF_TIME(plan_cache_evict_interval, OB_CLUSTER_PARAMETER, "5s", "[0s,)",
+DEF_TIME(plan_cache_evict_interval, OB_CLUSTER_PARAMETER, "10m", "[0s,)",
          "time interval for periodic plan cache eviction. Range: [0s, +∞)",
          ObParameterAttr(Section::TENANT, Source::DEFAULT, EditLevel::DYNAMIC_EFFECTIVE));
 DEF_INT(default_progressive_merge_num, OB_TENANT_PARAMETER, "0", "[0,)",
