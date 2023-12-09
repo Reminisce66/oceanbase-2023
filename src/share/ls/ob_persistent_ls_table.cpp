@@ -128,7 +128,7 @@ int ObPersistentLSTable::fetch_ls_info_(
 {
   int ret = OB_SUCCESS;
   const char *table_name_meta = OB_ALL_LS_META_TABLE_TNAME;
-  const uint64_t sql_tenant_id = get_private_table_exec_tenant_id(tenant_id);
+  const uint64_t sql_tenant_id = OB_SYS_TENANT_ID;
   if (OB_UNLIKELY(!is_inited())) {
     ret = OB_NOT_INIT;
     LOG_WARN("ObPersistentLSTable not init", KR(ret));
@@ -335,7 +335,7 @@ int ObPersistentLSTable::update(
   AutoTransProxy proxy(*sql_proxy_);
   bool with_snapshot = false;
   ObLSReplica new_replica;
-  uint64_t sql_tenant_id = get_private_table_exec_tenant_id(replica.get_tenant_id());
+  uint64_t sql_tenant_id = OB_SYS_TENANT_ID;
   if (OB_UNLIKELY(!is_inited()) || OB_ISNULL(sql_proxy_)) {
     ret = OB_NOT_INIT;
     LOG_WARN("ObPersistentLSTable not init", KR(ret), KP_(sql_proxy));
@@ -431,7 +431,7 @@ int ObPersistentLSTable::lock_lines_in_meta_table_for_leader_update_(
   ObLSInfo ls_info;
   const ObLSReplica *replica = NULL;
   const char *table_name_meta = OB_ALL_LS_META_TABLE_TNAME;
-  const uint64_t sql_tenant_id = get_private_table_exec_tenant_id(tenant_id);
+  const uint64_t sql_tenant_id = OB_SYS_TENANT_ID;
   if (OB_UNLIKELY(!is_inited())) {
     ret = OB_NOT_INIT;
     LOG_WARN("ObPersistentLSTable not init", KR(ret));

@@ -1964,11 +1964,11 @@ int ObRootService::execute_bootstrap(const obrpc::ObBootstrapArg &arg)
     update_cpu_quota_concurrency_in_memory_();
     // avoid bootstrap and do_restart run concurrently
     FLOG_INFO("[ROOTSERVICE_NOTICE] try to get lock for bootstrap in execute_bootstrap");
-    ObLatchWGuard guard(bootstrap_lock_, ObLatchIds::RS_BOOTSTRAP_LOCK);
+    ObLatchWGuard guard(bootstrap_lock_, ObLatchIds::RS_BOOTSTRAP_LOCK);//cost=800000
     FLOG_INFO("[ROOTSERVICE_NOTICE] success to get lock for bootstrap in execute_bootstrap");
     ObBootstrap bootstrap(rpc_proxy_, *lst_operator_, ddl_service_, unit_manager_,
                           *config_, arg, common_proxy_);
-    if (OB_FAIL(bootstrap.execute_bootstrap(server_zone_op_service_))) {
+    if (OB_FAIL(bootstrap.execute_bootstrap(server_zone_op_service_))) {//cost=2s
       LOG_ERROR("failed to execute_bootstrap", K(server_list), K(ret));
     }
 
@@ -1976,7 +1976,7 @@ int ObRootService::execute_bootstrap(const obrpc::ObBootstrapArg &arg)
     ObGlobalStatProxy global_proxy(sql_proxy_, OB_SYS_TENANT_ID);
     ObArray<ObAddr> self_addr;
     if (OB_FAIL(ret)) {
-    } else if (OB_FAIL(do_restart())) {
+    } else if (OB_FAIL(do_restart())) {//4s
       LOG_WARN("do restart task failed", K(ret));
     } else if (OB_FAIL(check_ddl_allowed())) {
       LOG_WARN("fail to check ddl allowed", K(ret));
@@ -2024,7 +2024,7 @@ int ObRootService::execute_bootstrap(const obrpc::ObBootstrapArg &arg)
     }
     ret = OB_SUCC(ret) ? tmp_ret : ret;
   }
-  BOOTSTRAP_LOG(INFO, "execute_bootstrap finished", K(ret));//cost 5s
+  BOOTSTRAP_LOG(INFO, "execute_bootstrap finished", K(ret));//start to do_restart cost 200ms
   return ret;
 }
 
@@ -2727,7 +2727,7 @@ int ObRootService::create_tenant(const ObCreateTenantArg &arg, UInt64 &tenant_id
       }
     }
   } else {}
-  LOG_INFO("finish create tenant", KR(ret), K(tenant_id), K(arg), "timeout_ts", THIS_WORKER.get_timeout_ts());
+  LOG_INFO("finish create tenant", KR(ret), K(tenant_id), K(arg), "timeout_ts", THIS_WORKER.get_timeout_ts());//5s
   return ret;
 }
 
@@ -4971,7 +4971,7 @@ int ObRootService::do_restart()
   int ret = OB_SUCCESS;
 
   const int64_t tenant_id = OB_SYS_TENANT_ID;
-  SpinWLockGuard rs_list_guard(broadcast_rs_list_lock_);
+  //SpinWLockGuard rs_list_guard(broadcast_rs_list_lock_);
 
   // NOTE: following log print after lock
   FLOG_INFO("[ROOTSERVICE_NOTICE] start do_restart");
@@ -5000,13 +5000,13 @@ int ObRootService::do_restart()
   }
 
   // broadcast root server address, ignore error
-  if (OB_SUCC(ret)) {
+  /*if (OB_SUCC(ret)) {
     int tmp_ret = update_rslist();
     if (OB_SUCCESS != tmp_ret) {
       FLOG_WARN("failed to update rslist but ignored", KR(tmp_ret));
     }
-  }
-  FLOG_INFO("[ROOTSERVICE_NOTICE] start do_restart load_refresh_schema_status");
+  }*/
+  FLOG_INFO("[ROOTSERVICE_NOTICE] start do_restart load_refresh_schema_status");//4977- 2s
   if (OB_SUCC(ret)) {
     //standby cluster trigger load_refresh_schema_status by heartbeat.
     //due to switchover, primary cluster need to load schema_status too.
@@ -5014,10 +5014,10 @@ int ObRootService::do_restart()
     if (OB_ISNULL(schema_status_proxy)) {
       ret = OB_ERR_UNEXPECTED;
       FLOG_WARN("schema_status_proxy is null", KR(ret));
-    } else if (OB_FAIL(schema_status_proxy->load_refresh_schema_status())) {
+    } else if (OB_FAIL(schema_status_proxy->load_refresh_schema_status())) {//这里有问题第一次restart
       FLOG_WARN("fail to load refresh schema status", KR(ret));
     } else {
-      FLOG_INFO("load schema status success");
+      FLOG_INFO("load schema status success");//cost 5009- 1000
     }
   }
 
@@ -5039,35 +5039,35 @@ int ObRootService::do_restart()
   if (FAILEDx(refresh_schema(load_frozen_status))) {
     FLOG_WARN("refresh schema failed", KR(ret), K(load_frozen_status));
   } else {
-    FLOG_INFO("success to refresh schema", K(load_frozen_status));
+    FLOG_INFO("success to refresh schema", K(load_frozen_status));//5020- 3000
   }
 
   // refresh server manager
   if (FAILEDx(refresh_server(load_frozen_status, refresh_server_need_retry))) {
     FLOG_WARN("refresh server failed", KR(ret), K(load_frozen_status));
   } else {
-    FLOG_INFO("success to refresh server", K(load_frozen_status));
+    FLOG_INFO("success to refresh server", K(load_frozen_status));//5042-  几百
   }
 
   // add other reload logic here
   if (FAILEDx(zone_manager_.reload())) {
     FLOG_WARN("zone_manager_ reload failed", KR(ret));
   } else {
-    FLOG_INFO("success to reload zone_manager_");
+    FLOG_INFO("success to reload zone_manager_");//5049- 1000
   }
 
   // start timer tasks
   if (FAILEDx(start_timer_tasks())) {
     FLOG_WARN("start timer tasks failed", KR(ret));
   } else {
-    FLOG_INFO("success to start timer tasks");
+    FLOG_INFO("success to start timer tasks");//5056- 几百
   }
 
   DEBUG_SYNC(BEFORE_UNIT_MANAGER_LOAD);
   if (FAILEDx(unit_manager_.load())) {
     FLOG_WARN("unit_manager_ load failed", KR(ret));
   } else {
-    FLOG_INFO("load unit_manager success");
+    FLOG_INFO("load unit_manager success");//5063- 6000
   }
 
   /*
@@ -5114,7 +5114,7 @@ int ObRootService::do_restart()
 
   // broadcast root server address again, this task must be in the end part of do_restart,
   // because system may work properly without it.
-  if (FAILEDx(update_rslist())) {
+  /*if (FAILEDx(update_rslist())) {//2s
     FLOG_WARN("broadcast root address failed but ignored", KR(ret));
     // it's ok ret be overwritten, update_rslist_task will retry until succeed
     if (OB_FAIL(submit_update_rslist_task(true))) {
@@ -5124,6 +5124,12 @@ int ObRootService::do_restart()
     }
   } else {
     FLOG_INFO("broadcast root address succeed");
+  }*/
+  // it's ok ret be overwritten, update_rslist_task will retry until succeed
+  if (OB_FAIL(submit_update_rslist_task(true))) {
+      FLOG_WARN("submit_update_rslist_task failed", KR(ret));
+  } else {
+      FLOG_INFO("submit_update_rslist_task succeed");
   }
 
   if (FAILEDx(report_single_replica(tenant_id, SYS_LS))) {

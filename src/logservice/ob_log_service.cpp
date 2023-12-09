@@ -131,9 +131,9 @@ void ObLogService::mtl_destroy(ObLogService* &logservice)
 int ObLogService::start()
 {
   int ret = OB_SUCCESS;
-  if (OB_FAIL(apply_service_.start())) {
+  if (OB_FAIL(apply_service_.start())) {//370
     CLOG_LOG(WARN, "failed to start apply_service_", K(ret));
-  } else if (OB_FAIL(replay_service_.start())) {
+  } else if (OB_FAIL(replay_service_.start())) {//610
     CLOG_LOG(WARN, "failed to start replay_service_", K(ret));
   } else if (OB_FAIL(role_change_service_.start())) {
     CLOG_LOG(WARN, "failed to start role_change_service_", K(ret));

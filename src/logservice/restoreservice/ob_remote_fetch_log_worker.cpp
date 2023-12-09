@@ -137,7 +137,7 @@ int ObRemoteFetchWorker::start()
   if (OB_UNLIKELY(! inited_)) {
     ret = OB_NOT_INIT;
     LOG_ERROR("ObRemoteFetchWorker not init", K(ret));
-  } else if (OB_FAIL(log_ext_handler_.start(0))) {
+  } else if (OB_FAIL(log_ext_handler_.start(1))) {
     LOG_WARN("ObLogExtStorageHandler start failed");
   } else if (OB_FAIL(ObThreadPool::start())) {
     LOG_WARN("ObRemoteFetchWorker start failed", K(ret));

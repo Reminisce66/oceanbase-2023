@@ -151,7 +151,7 @@ public:
 
   virtual ~ObBootstrap() {}
   virtual int execute_bootstrap(rootserver::ObServerZoneOpService &server_zone_op_service);
-  static int create_all_schema(
+  int create_all_schema(
       ObDDLService &ddl_service,
       common::ObIArray<share::schema::ObTableSchema> &table_schemas);
   int construct_all_schema(

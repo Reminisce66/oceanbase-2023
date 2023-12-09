@@ -221,6 +221,7 @@ int ElectionProposer::register_renew_lease_task_()
                                                            std::min(int64_t(500_ms), CALCULATE_RENEW_LEASE_INTERVAL()),
                                                            [this]() {
     int ret = OB_SUCCESS;
+
     LockGuard lock_guard(p_election_->lock_);
     // 周期性打印选举的状态
     if (ObClockGenerator::getCurrentTime() > last_dump_proposer_info_ts_ + 3_s) {

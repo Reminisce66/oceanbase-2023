@@ -808,7 +808,7 @@ int ObServer::start()
   int64_t reserved_size = 0;
   gctx_.status_ = SS_STARTING;
   // begin to start a observer
-  FLOG_INFO("[OBSERVER_NOTICE] start observer begin");
+  LOG_INFO("[OBSERVER_NOTICE] start observer begin");
 
   if (is_arbitration_mode()) {
 #ifdef OB_BUILD_ARBITRATION
@@ -831,19 +831,19 @@ int ObServer::start()
     if (FAILEDx(SERVER_STARTUP_TASK_HANDLER.start())) {
       LOG_ERROR("fail to start server startup task handler", KR(ret));
     } else {
-      FLOG_INFO("success to start server startup task handler");
+      LOG_INFO("success to start server startup task handler");
     }
 
     if (FAILEDx(OB_TS_MGR.start())) {
       LOG_ERROR("fail to start ts mgr", KR(ret));
     } else {
-      FLOG_INFO("success to start ts mgr");
+      LOG_INFO("success to start ts mgr");
     }
 
     if (FAILEDx(net_frame_.start())) {
       LOG_ERROR("fail to start net frame", KR(ret));
     } else {
-      FLOG_INFO("success to start net frame");
+      LOG_INFO("success to start net frame");
     }
 
     if (FAILEDx(SLOGGERMGR.get_reserved_size(reserved_size))) {
@@ -851,56 +851,56 @@ int ObServer::start()
     } else if (OB_FAIL(OB_SERVER_BLOCK_MGR.start(reserved_size))) {
       LOG_ERROR("start block manager fail", KR(ret));
     } else {
-      FLOG_INFO("success to start block manager");
+      LOG_INFO("success to start block manager");
     }
 
     if (FAILEDx(ObIOManager::get_instance().start())) {
       LOG_ERROR("fail to start io manager", KR(ret));
     } else {
-      FLOG_INFO("success to start io manager");
+      LOG_INFO("success to start io manager");
     }
 
     if (FAILEDx(multi_tenant_.start())) {
       LOG_ERROR("fail to start multi tenant", KR(ret));
     } else {
-      FLOG_INFO("success to start multi tenant");
+      LOG_INFO("success to start multi tenant");
     }
 
     if (FAILEDx(ObServerCheckpointSlogHandler::get_instance().start())) {
       LOG_ERROR("fail to start server checkpoint slog handler", KR(ret));
     } else {
-      FLOG_INFO("success to start server checkpoint slog handler");
+      LOG_INFO("success to start server checkpoint slog handler");
     }
 
-    if (FAILEDx(log_block_mgr_.start(storage_env_.log_disk_size_))) {
+    if (FAILEDx(log_block_mgr_.start(storage_env_.log_disk_size_))) {//600ms
       LOG_ERROR("fail to start log pool", KR(ret));
     } else {
-      FLOG_INFO("success to start log pool");
+      LOG_INFO("success to start log pool");
     }
 
-    if (FAILEDx(try_update_hidden_sys())) {
+    if (FAILEDx(try_update_hidden_sys())) {//150ms
       LOG_ERROR("fail to update hidden sys tenant", KR(ret));
     } else {
-      FLOG_INFO("success to update hidden sys tenant");
+      LOG_INFO("success to update hidden sys tenant");
     }
 
     if (FAILEDx(weak_read_service_.start())) {
       LOG_ERROR("fail to start weak read service", KR(ret));
     } else {
-      FLOG_INFO("success to start weak read service");
+      LOG_INFO("success to start weak read service");
     }
 
     if (FAILEDx(bl_service_.start())) {
       LOG_ERROR("fail to start blacklist service", KR(ret));
     } else {
-      FLOG_INFO("success to start blacklist service");
+      LOG_INFO("success to start blacklist service");
     }
 
     // do not wait clog replay over, avoid blocking other module
     if (FAILEDx(root_service_monitor_.start())) {
       LOG_ERROR("fail to start root service monitor", KR(ret));
     } else {
-      FLOG_INFO("success to start root service monitor");
+      LOG_INFO("success to start root service monitor");
     }
 
     if (FAILEDx(wr_service_.start())) {
@@ -909,34 +909,34 @@ int ObServer::start()
       LOG_INFO("success to start wr service");
     }
 
-    if (FAILEDx(ob_service_.start())) {
+    if (FAILEDx(ob_service_.start())) {//2s
       LOG_ERROR("fail to start oceanbase service", KR(ret));
     } else {
-      FLOG_INFO("success to start oceanbase service");
+      LOG_INFO("success to start oceanbase service");
     }
 
     if (FAILEDx(locality_manager_.start())) {
       LOG_ERROR("fail to start locality manager", K(ret));
     } else {
-      FLOG_INFO("success to start locality manager");
+      LOG_INFO("success to start locality manager");
     }
 
     if (FAILEDx(reload_config_())) {
       LOG_ERROR("fail to reload configuration", KR(ret));
     } else {
-      FLOG_INFO("success to reload configuration");
+      LOG_INFO("success to reload configuration");
     }
 
     if (FAILEDx(ObTimerMonitor::get_instance().start())) {
       LOG_ERROR("fail to start timer monitor", KR(ret));
     } else {
-      FLOG_INFO("success to start timer monitor");
+      LOG_INFO("success to start timer monitor");
     }
 
     if (FAILEDx(ObBGThreadMonitor::get_instance().start())) {
       LOG_ERROR("fail to start bg thread monitor", KR(ret));
     } else {
-      FLOG_INFO("success to start bg thread monitor");
+      LOG_INFO("success to start bg thread monitor");
     }
 #ifdef ENABLE_IMC
     if (FAILEDx(imc_tasks_.start())) {
@@ -949,32 +949,32 @@ int ObServer::start()
     if (FAILEDx(unix_domain_listener_.start())) {
       LOG_ERROR("fail to start unix domain listener", KR(ret));
     } else {
-      FLOG_INFO("success to start unix domain listener");
+      LOG_INFO("success to start unix domain listener");
     }
 
     if (FAILEDx(OB_PX_TARGET_MGR.start())) {
       LOG_ERROR("fail to start ObPxTargetMgr", KR(ret));
     } else {
-      FLOG_INFO("success to start ObPxTargetMgr");
+      LOG_INFO("success to start ObPxTargetMgr");
     }
 
     if (FAILEDx(TG_SCHEDULE(lib::TGDefIDs::DiskUseReport,
         disk_usage_report_task_, DISK_USAGE_REPORT_INTERVAL, true))) {
       LOG_ERROR("fail to schedule disk_usage_report_task_ task", KR(ret));
     } else {
-      FLOG_INFO("success to schedule disk_usage_report_task_ task");
+      LOG_INFO("success to schedule disk_usage_report_task_ task");
     }
 
     if (FAILEDx(ObActiveSessHistTask::get_instance().start())) {
       LOG_ERROR("fail to init active session history task", KR(ret));
     } else {
-      FLOG_INFO("success to init active session history task");
+      LOG_INFO("success to init active session history task");
     }
 
     if (FAILEDx(location_service_.start())) {
       LOG_ERROR("fail to start location service", KR(ret));
     } else {
-      FLOG_INFO("success to start location service");
+      LOG_INFO("success to start location service");
     }
 
 #ifdef OB_BUILD_ARBITRATION
@@ -986,7 +986,7 @@ int ObServer::start()
 #endif
 
     if (OB_SUCC(ret)) {
-      FLOG_INFO("[OBSERVER_NOTICE] server instance start succeed");
+      LOG_INFO("[OBSERVER_NOTICE] server instance start succeed");
       prepare_stop_ = false;
       stop_ = false;
       has_stopped_ = false;
@@ -999,48 +999,48 @@ int ObServer::start()
     // The version should be greater than original version but less
     // than normal one.
     if (FAILEDx(config_mgr_.got_version(ObSystemConfig::INIT_VERSION))) {
-      FLOG_WARN("fail to refresh server configure", KR(ret));
+      LOG_WARN("fail to refresh server configure", KR(ret));
     } else {
-      FLOG_INFO("success to refresh server configure");
+      LOG_INFO("success to refresh server configure");
     }
 
     bool synced = false;
     while (OB_SUCC(ret) && !stop_ && !synced) {
       synced = multi_tenant_.has_synced();
       if (!synced) {
-        SLEEP(1);
+          ob_usleep(200_ms);
       }
     }
-    FLOG_INFO("check if multi tenant synced", KR(ret), K(stop_), K(synced));
+    LOG_INFO("check if multi tenant synced", KR(ret), K(stop_), K(synced));//3s
 
     bool schema_ready = false;
     while (OB_SUCC(ret) && !stop_ && !schema_ready) {
       schema_ready = schema_service_.is_sys_full_schema();
       if (!schema_ready) {
-        SLEEP(1);
+          ob_usleep(200_ms);
       }
     }
-    FLOG_INFO("check if schema ready", KR(ret), K(stop_), K(schema_ready));
+    LOG_INFO("check if schema ready", KR(ret), K(stop_), K(schema_ready));
 
     bool timezone_usable = false;
     if (FAILEDx(tenant_timezone_mgr_.start())) {
       LOG_ERROR("fail to start tenant timezone mgr", KR(ret));
     } else {
-      FLOG_INFO("success to start tenant timezone mgr");
+      LOG_INFO("success to start tenant timezone mgr");
     }
     while (OB_SUCC(ret) && !stop_ && !timezone_usable) {
       timezone_usable = tenant_timezone_mgr_.is_usable();
       if (!timezone_usable) {
-        SLEEP(1);
+          ob_usleep(200_ms);
       }
     }
-    FLOG_INFO("check if timezone usable", KR(ret), K(stop_), K(timezone_usable));
+    LOG_INFO("check if timezone usable", KR(ret), K(stop_), K(timezone_usable));//1s,睡一次
 
     // check log replay and user tenant schema refresh status
     if (OB_SUCC(ret)) {
       if (stop_) {
         ret = OB_SERVER_IS_STOPPING;
-        FLOG_WARN("server is in stopping status", KR(ret));
+        LOG_WARN("server is in stopping status", KR(ret));
       } else {
         ObSEArray<uint64_t, 16> tenant_ids;
         const int64_t MAX_CHECK_TIME = 15 * 60 * 1000 * 1000L; // 15min
@@ -1050,7 +1050,7 @@ int ObServer::start()
         tenant_ids.set_max_print_count(512);
 
         if (OB_FAIL(multi_tenant_.get_mtl_tenant_ids(tenant_ids))) {
-          FLOG_ERROR("get mtl tenant ids fail", KR(ret));
+          LOG_ERROR("get mtl tenant ids fail", KR(ret));
         } else if (tenant_ids.count() <= 0) {
           // do nothing
         } else {
@@ -1060,7 +1060,7 @@ int ObServer::start()
           // check log replay status
           check_log_replay_over(tenant_ids, expire_time);
         }
-        FLOG_INFO("[OBSERVER_NOTICE] check log replay and user tenant schema finished",
+        LOG_INFO("[OBSERVER_NOTICE] check log replay and user tenant schema finished",
             KR(ret),
             K(tenant_ids),
             "refresh_schema_cost_us", schema_refreshed_ts - start_ts,
@@ -1077,9 +1077,9 @@ int ObServer::start()
   } else if (!stop_) {
     GCTX.status_ = SS_SERVING;
     GCTX.start_service_time_ = ObTimeUtility::current_time();
-    FLOG_INFO("[OBSERVER_NOTICE] observer start service", "start_service_time", GCTX.start_service_time_);
+    LOG_INFO("[OBSERVER_NOTICE] observer start service", "start_service_time", GCTX.start_service_time_);
   } else {
-    FLOG_INFO("[OBSERVER_NOTICE] observer is set to stop", KR(ret), K_(stop));
+    LOG_INFO("[OBSERVER_NOTICE] observer is set to stop", KR(ret), K_(stop));
     LOG_DBA_ERROR(OB_ERR_OBSERVER_START, "msg", "observer start process is interrupted", KR(ret), K_(stop));
   }
 

@@ -1445,7 +1445,7 @@ int ObService::bootstrap(const obrpc::ObBootstrapArg &arg)
           if (OB_RS_NOT_MASTER == ret) {
             BOOTSTRAP_LOG(INFO, "master root service not ready",
                           K(master_rs), "retry_count", i, K(rpc_timeout), K(ret));
-            USLEEP(200 * 1000);
+            USLEEP(20 * 1000);//；原来重试200ms
           } else {
             const ObAddr rpc_svr = rpc_proxy.get_server();
             BOOTSTRAP_LOG(ERROR, "execute bootstrap fail", KR(ret), K(rpc_svr), K(master_rs), K(rpc_timeout));

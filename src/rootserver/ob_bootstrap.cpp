@@ -243,33 +243,33 @@ int ObPreBootstrap::prepare_bootstrap(ObAddr &master_rs)
 
   begin_ts_ = ObTimeUtility::current_time();
   int64_t my_begin_ts=begin_ts_;
-  if (OB_FAIL(check_inner_stat())) {
+  /*if (OB_FAIL(check_inner_stat())) {
     LOG_WARN("check_inner_stat failed", KR(ret));
   } else if (OB_FAIL(check_bootstrap_rs_list(rs_list_))) {
     LOG_WARN("failed to check_bootstrap_rs_list", KR(ret), K_(rs_list));
-  } else if (OB_FAIL(check_all_server_bootstrap_mode_match(match))) {//2.1
+  } else if (OB_FAIL(check_all_server_bootstrap_mode_match(match))) {//2.1 cost=30904
     LOG_WARN("fail to check all server bootstrap mode match", KR(ret));
   } else if (!match) {
     ret = OB_NOT_SUPPORTED;
     LOG_WARN("cannot do bootstrap with different bootstrap mode on servers", KR(ret));
-  } else if (OB_FAIL(check_is_all_server_empty(is_empty))) {//2.2
+  } else if (OB_FAIL(check_is_all_server_empty(is_empty))) {//2.2 cost=30904
     LOG_WARN("failed to check bootstrap stat", KR(ret));
   } else if (!is_empty) {
     ret = OB_INIT_TWICE;
     LOG_WARN("cannot do bootstrap on not empty server", KR(ret));
-  } else if (OB_FAIL(notify_sys_tenant_root_key())) {
+  } else*/ if (OB_FAIL(notify_sys_tenant_root_key())) {
     LOG_WARN("fail to notify sys tenant root key", KR(ret));
-  } else if (OB_FAIL(notify_sys_tenant_server_unit_resource())) {//2.3
+  } else if (OB_FAIL(notify_sys_tenant_server_unit_resource())) {//2.3 cost=3097
     LOG_WARN("fail to notify sys tenant server unit resource", KR(ret));
-  } else if (OB_FAIL(notify_sys_tenant_config_())) {//2.4
+  } else if (OB_FAIL(notify_sys_tenant_config_())) {//2.4 cost=7549
     LOG_WARN("fail to notify sys tenant config", KR(ret));
-  } else if (OB_FAIL(create_ls())) {//2.5
+  } else if (OB_FAIL(create_ls())) {//2.5 cost=47414
     LOG_WARN("failed to create core table partition", KR(ret));
-  } else if (OB_FAIL(wait_elect_ls(master_rs))) {//2.6
+  } else if (OB_FAIL(wait_elect_ls(master_rs))) {//2.6 cost=381296
     LOG_WARN("failed to wait elect master partition", KR(ret));
   }
   begin_ts_=my_begin_ts;
-  BOOTSTRAP_CHECK_SUCCESS();//2.7
+  BOOTSTRAP_CHECK_SUCCESS();//2.7 cots=482318
   return ret;
 }
 
@@ -564,14 +564,21 @@ void myThreadPool::run1(){
     if (OB_NOT_NULL(name_)) {
         lib::set_thread_name(name_);
     }
-    while (!has_set_stop() && !(OB_NOT_NULL(&lib::Thread::current()) ? lib::Thread::current().has_set_stop() : false)) {
+    int64_t wait_time=0;
+    while (!is_finish_&&!has_set_stop() && !(OB_NOT_NULL(&lib::Thread::current()) ? lib::Thread::current().has_set_stop() : false)) {
         void *task = NULL;
-        if (OB_SUCC(queue_.pop(task, QUEUE_WAIT_TIME))) {
+        if (OB_SUCC(queue_.pop(task, 1000))) {
             LOG_WARN("access task");
             LOG_WARN("task addr",K((int64_t)task));
             handle(task);
             ATOMIC_DEC(&task_nums_);
             LOG_WARN("task_nums_",K(task_nums_));
+	    wait_time=0;
+        }else {
+           if(wait_time>10){
+               break;
+           }
+           wait_time++;
         }
         if(ATOMIC_LOAD(&task_nums_)==0){
             is_finish_=true;
@@ -585,6 +592,7 @@ void myThreadPool::run1(){
             handle_drop(task);
         }
     }
+    LOG_WARN("thread quit");
 }
 void myThreadPool::handle(void *task){
     int ret = OB_SUCCESS;
@@ -724,7 +732,7 @@ ObBootstrap::ObBootstrap(
 }
 
 int ObBootstrap::execute_bootstrap(rootserver::ObServerZoneOpService &server_zone_op_service)
-{//cost=10s
+{//cost=2s
   int ret = OB_SUCCESS;
   bool already_bootstrap = true;
   ObSArray<ObTableSchema> table_schemas;
@@ -741,34 +749,34 @@ int ObBootstrap::execute_bootstrap(rootserver::ObServerZoneOpService &server_zon
     LOG_WARN("ob system is already bootstrap, cannot bootstrap again", K(ret));
   } else if (OB_FAIL(check_bootstrap_rs_list(rs_list_))) {
     LOG_WARN("failed to check_bootstrap_rs_list", K_(rs_list), K(ret));
-  } else if (OB_FAIL(create_all_core_table_partition())) {//3.2-3.3 cost 104000
+  } else if (OB_FAIL(create_all_core_table_partition())) {//3.2-3.3 cost 15ms
     LOG_WARN("fail to create all core_table partition", KR(ret));
   } else if (OB_FAIL(set_in_bootstrap())) {
     LOG_WARN("failed to set in bootstrap", K(ret));
-  } else if (OB_FAIL(init_global_stat())) {//3.4 cost=8513
+  } else if (OB_FAIL(init_global_stat())) {//3.4 cost=15MS
     LOG_WARN("failed to init_global_stat", K(ret));
-  } else if (OB_FAIL(construct_all_schema(table_schemas))) {//3.5-3.1789 cost=100000
+  } else if (OB_FAIL(construct_all_schema(table_schemas))) {//3.5-3.1789 cost=50ms
     LOG_WARN("construct all schema fail", K(ret));
-  } else if (OB_FAIL(broadcast_sys_schema(table_schemas))) {//3.1790 COST=193129
+  } else if (OB_FAIL(broadcast_sys_schema(table_schemas))) {//3.1790 COST=125ms
     LOG_WARN("broadcast_sys_schemas failed", K(table_schemas), K(ret));
-  } else if (OB_FAIL(create_all_partitions())) {//3.1791 -3.2051 COST=500000
+  } /*else if (OB_FAIL(create_all_partitions())) {//3.1791 -3.2051 COST=249ms
     LOG_WARN("create all partitions fail", K(ret));
-  } else if (OB_FAIL(create_all_schema(ddl_service_, table_schemas))) { // 3.2052 cost=5457462
+  }*/ else if (OB_FAIL(create_all_schema(ddl_service_, table_schemas))) { // 3.2052 cost=919ms
     LOG_WARN("create_all_schema failed",  K(table_schemas), K(ret));
   }
   BOOTSTRAP_CHECK_SUCCESS_V2("create_all_schema");
   ObMultiVersionSchemaService &schema_service = ddl_service_.get_schema_service();
 
-  if (OB_SUCC(ret)) {
-    if (OB_FAIL(init_system_data())) {//3.2054-3.2060 COST=127800
+  /*if (OB_SUCC(ret)) {
+    if (OB_FAIL(init_system_data())) {//3.2054-3.2060 COST=116ms
       LOG_WARN("failed to init system data", KR(ret));
     } else if (OB_FAIL(ddl_service_.refresh_schema(OB_SYS_TENANT_ID))) {
       LOG_WARN("failed to refresh_schema", K(ret));
     }
-  }
-  BOOTSTRAP_CHECK_SUCCESS_V2("refresh_schema");//3.2061 cost=510671
+  }*/
+  BOOTSTRAP_CHECK_SUCCESS_V2("refresh_schema");//3.2061 cost=377ms
 
-  if (FAILEDx(add_servers_in_rs_list(server_zone_op_service))) {
+  if (FAILEDx(add_servers_in_rs_list(server_zone_op_service))) {//3.2062 COST=15ms
     LOG_WARN("fail to add servers in rs_list_", KR(ret));
   } /*else if (OB_FAIL(wait_all_rs_in_service())) {//3.2062 cost=7518562
     LOG_WARN("failed to wait all rs in service", KR(ret));
@@ -776,7 +784,7 @@ int ObBootstrap::execute_bootstrap(rootserver::ObServerZoneOpService &server_zon
     ROOTSERVICE_EVENT_ADD("bootstrap", "bootstrap_succeed");
   }
   begin_ts_=my_begin_ts;
-  BOOTSTRAP_CHECK_SUCCESS();//3.2063 cost=13502828
+  BOOTSTRAP_CHECK_SUCCESS();//3.2063 cost=1882605
   return ret;
 }
 
@@ -1098,7 +1106,7 @@ int ObBootstrap::broadcast_sys_schema(const ObSArray<ObTableSchema> &table_schem
                  "server", rs->server_);
       }
     } // end foreach
-
+    create_all_partitions();
     ObArray<int> return_code_array;
     int tmp_ret = OB_SUCCESS; // always wait all
     if (OB_SUCCESS != (tmp_ret = proxy.wait_all(return_code_array))) {
@@ -1192,10 +1200,19 @@ int ObBootstrap::create_all_schema(ObDDLService &ddl_service,
 
 
     }
+    if (OB_SUCC(ret)) {
+    if (OB_FAIL(init_system_data())) {//3.2054-3.2060 COST=116ms
+      LOG_WARN("failed to init system data", KR(ret));
+    } else if (OB_FAIL(ddl_service_.refresh_schema(OB_SYS_TENANT_ID))) {
+      LOG_WARN("failed to refresh_schema", K(ret));
+    }
+  }
       while(!is_finish){
-          ob_usleep(100);
+          ob_usleep(1000);
       }
+      int64_t begin_destroy = ObTimeUtility::current_time();
       pool.destroy();
+      LOG_INFO("end destroy cost",K(ret),"cost",ObTimeUtility::current_time() - begin_destroy);
   }
   LOG_INFO("end create all schemas", K(ret), "table count", table_schemas.count(),
            "time_used", ObTimeUtility::current_time() - begin_time);

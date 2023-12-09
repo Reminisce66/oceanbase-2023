@@ -81,6 +81,7 @@ public:
         *epoch = exposed_epoch;
       }
     }
+
     return ret;
   }
   int revoke(const RoleChangeReason &reason);

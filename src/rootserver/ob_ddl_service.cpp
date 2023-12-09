@@ -21999,16 +21999,71 @@ int ObDDLService::create_tenant(
       LOG_WARN("fail to init schema status", KR(ret), K(user_tenant_id));
     } else if (OB_FAIL(create_tenant_schema(
                arg, schema_guard, user_tenant_schema,
-               meta_tenant_schema, init_configs))) {
+               meta_tenant_schema, init_configs))) {//550ms
       LOG_WARN("fail to create tenant schema", KR(ret), K(arg));
     } else {
       DEBUG_SYNC(BEFORE_CREATE_META_TENANT);
+
+      if (OB_SUCC(ret) && is_meta_tenant(meta_tenant_id)) {
+          ObAllTenantInfo tenant_info;
+          ObDDLSQLTransaction trans(schema_service_, true, true, true, false);
+          int64_t sys_schema_version = OB_INVALID_VERSION;
+          schema_guard.get_schema_version(OB_SYS_TENANT_ID, sys_schema_version);
+          trans.start(sql_proxy_, OB_SYS_TENANT_ID, sys_schema_version);
+          if (OB_FAIL(tenant_info.init(user_tenant_id, tenant_role, NORMAL_SWITCHOVER_STATUS, 0,
+                SCN::base_scn(), SCN::base_scn(), SCN::base_scn(), recovery_until_scn))) {
+                LOG_WARN("failed to init tenant info", KR(ret), K(tenant_id), K(tenant_role));
+          } else if (OB_FAIL(ObAllTenantInfoProxy::init_tenant_info_my(tenant_info, &trans))) {
+            LOG_WARN("failed to init tenant info", KR(ret), K(tenant_info));
+          }
+          if (trans.is_started()) {
+              int temp_ret = OB_SUCCESS;
+              bool commit = OB_SUCC(ret);
+              if (OB_SUCCESS != (temp_ret = trans.end(commit))) {
+                  ret = (OB_SUCC(ret)) ? temp_ret : ret;
+                  LOG_WARN("trans end failed", K(commit), K(temp_ret));
+              }
+          }
+      }
+
+
       // create ls/tablet/schema in tenant space
       ObArray<ObResourcePoolName> pools;
       if (OB_FAIL(get_pools(arg.pool_list_, pools))) {
         LOG_WARN("get_pools failed", KR(ret), K(arg));
-      } else if (OB_FAIL(create_normal_tenant(meta_tenant_id, pools, meta_tenant_schema, tenant_role,
-        recovery_until_scn, meta_sys_variable, false/*create_ls_with_palf*/, meta_palf_base_info, init_configs,
+      }else{
+          bool is_finish=false;
+          int task_num=2;
+          my2ThreadPool pool(is_finish,task_num,*this);
+        if(OB_FAIL(pool.init(2,2,"create_tenant"))) {
+            LOG_WARN("pool init failed", K(ret));
+        }
+        if(OB_FAIL(pool.start())){
+            LOG_WARN("pool start failed", K(ret));
+        }
+        CreateTenantTask task1(meta_tenant_id, pools, meta_tenant_schema, tenant_role,
+        recovery_until_scn, meta_sys_variable, false, meta_palf_base_info, init_configs,
+        arg.is_creating_standby_, arg.log_restore_source_);
+        ObString empty_str;
+        CreateTenantTask task2(user_tenant_id, pools, user_tenant_schema, tenant_role,
+        recovery_until_scn, user_sys_variable, create_ls_with_palf, user_palf_base_info, init_configs,
+        false , empty_str);
+        if(OB_FAIL(pool.push((void *)&task1))){
+          LOG_WARN("pool task failed", K(ret));
+        }
+        //ob_usleep(2_s);
+        if(OB_FAIL(pool.push((void *)&task2))){
+           LOG_WARN("pool task failed", K(ret));
+        }
+        while(!is_finish){
+          ob_usleep(1000);
+        }
+	int64_t begin_destroy = ObTimeUtility::current_time();
+        pool.destroy();
+	LOG_INFO("end destroy cost",K(ret),"cost",ObTimeUtility::current_time() - begin_destroy);
+
+      }/*else if (OB_FAIL(create_normal_tenant(meta_tenant_id, pools, meta_tenant_schema, tenant_role,
+        recovery_until_scn, meta_sys_variable, false*//*create_ls_with_palf*//*, meta_palf_base_info, init_configs,//2321ms
         arg.is_creating_standby_, arg.log_restore_source_))) {
         LOG_WARN("fail to create meta tenant", KR(ret), K(meta_tenant_id), K(pools), K(meta_sys_variable),
             K(tenant_role), K(recovery_until_scn), K(meta_palf_base_info), K(init_configs));
@@ -22016,12 +22071,12 @@ int ObDDLService::create_tenant(
         ObString empty_str;
         DEBUG_SYNC(BEFORE_CREATE_USER_TENANT);
         if (OB_FAIL(create_normal_tenant(user_tenant_id, pools, user_tenant_schema, tenant_role,
-              recovery_until_scn, user_sys_variable, create_ls_with_palf, user_palf_base_info, init_configs,
-              false /* is_creating_standby */, empty_str))) {
+              recovery_until_scn, user_sys_variable, create_ls_with_palf, user_palf_base_info, init_configs,//2149ms
+              false *//* is_creating_standby *//*, empty_str))) {
           LOG_WARN("fail to create user tenant", KR(ret), K(user_tenant_id), K(pools), K(user_sys_variable),
               K(tenant_role), K(recovery_until_scn), K(user_palf_base_info));
         }
-      }
+      }*/
       // drop tenant if create tenant failed.
       // meta tenant will be force dropped with its user tenant.
       if (OB_FAIL(ret) && tenant_role.is_primary()) {
@@ -22146,7 +22201,7 @@ int ObDDLService::create_tenant_schema(
                  OB_DDL_ADD_TENANT_START, trans, &arg.ddl_stmt_str_))) {
         LOG_WARN("create tenant failed", KR(ret), K(user_tenant_schema));
       }
-      LOG_INFO("[CREATE_TENANT] STEP 1.1. finish create tenant schema", KR(ret), K(arg),
+      LOG_INFO("[CREATE_TENANT] STEP 1.1. finish create tenant schema", KR(ret), K(arg),//5ms
                "cost", ObTimeUtility::fast_current_time() - tmp_start_time);
     }
 
@@ -22185,10 +22240,9 @@ int ObDDLService::create_tenant_schema(
                          false/*is_bootstrap*/))) {
         LOG_WARN("grant_pools_to_tenant failed", KR(ret), K(pools), K(user_tenant_id));
       }
-      LOG_INFO("[CREATE_TENANT] STEP 1.2. finish grant pools", KR(ret), K(user_tenant_id),
+      LOG_INFO("[CREATE_TENANT] STEP 1.2. finish grant pools", KR(ret), K(user_tenant_id),//500ms
                "cost", ObTimeUtility::fast_current_time() - tmp_start_time);
     }
-
     // 3. persist initial tenant config
     if (OB_SUCC(ret)) {
       LOG_INFO("[CREATE_TENANT] STEP 1.3. start persist tenant config", K(user_tenant_id));
@@ -22608,27 +22662,27 @@ int ObDDLService::create_normal_tenant(
     LOG_WARN("tenant_id is invalid", KR(ret), K(tenant_id));
   } else if (OB_FAIL(insert_restore_tenant_job(tenant_id, tenant_schema.get_tenant_name(), tenant_role))) {
     LOG_WARN("failed to insert restore tenant job", KR(ret), K(tenant_id), K(tenant_role), K(tenant_schema));
-  } else if (OB_FAIL(create_tenant_sys_ls(tenant_schema, pool_list, create_ls_with_palf, palf_base_info))) {
+  } else if (OB_FAIL(create_tenant_sys_ls(tenant_schema, pool_list, create_ls_with_palf, palf_base_info,tables))) {//500ms
     LOG_WARN("fail to create tenant sys log stream", KR(ret), K(tenant_schema), K(pool_list), K(palf_base_info));
   } else if (is_user_tenant(tenant_id) && !tenant_role.is_primary()) {
     //standby cluster no need create sys tablet and init tenant schema
-  } else if (OB_FAIL(ObSchemaUtils::construct_inner_table_schemas(tenant_id, tables))) {
+  } /*else if (OB_FAIL(ObSchemaUtils::construct_inner_table_schemas(tenant_id, tables))) {
     LOG_WARN("fail to get inner table schemas in tenant space", KR(ret), K(tenant_id));
-  } else if (OB_FAIL(broadcast_sys_table_schemas(tenant_id, tables))) {
+  }*/ else if (OB_FAIL(broadcast_sys_table_schemas(tenant_id, tables))) {//150ms
     LOG_WARN("fail to broadcast sys table schemas", KR(ret), K(tenant_id));
-  } else if (OB_FAIL(create_tenant_sys_tablets(tenant_id, tables))) {
+  } /*else if (OB_FAIL(create_tenant_sys_tablets(tenant_id, tables))) {//258ms
     LOG_WARN("fail to create tenant partitions", KR(ret), K(tenant_id));
-  } else if (OB_FAIL(init_tenant_schema(tenant_id, tenant_schema,
+  }*/ else if (OB_FAIL(init_tenant_schema(tenant_id, tenant_schema,//1223ms
              tenant_role, recovery_until_scn, tables, sys_variable, init_configs,
              is_creating_standby, log_restore_source))) {
     LOG_WARN("fail to init tenant schema", KR(ret), K(tenant_role), K(recovery_until_scn),
              K(tenant_id), K(tenant_schema), K(sys_variable), K(init_configs),
              K(is_creating_standby), K(log_restore_source));
-  } else if (is_user_tenant(tenant_id) && OB_FAIL(create_tenant_user_ls(tenant_id))) {
+  } else if (is_user_tenant(tenant_id) && OB_FAIL(create_tenant_user_ls(tenant_id))) {//15ms
     //create user ls
     LOG_WARN("failed to create tenant user ls", KR(ret), K(tenant_id));
   }
-  LOG_INFO("[CREATE_TENANT] STEP 2. finish create tenant", KR(ret), K(tenant_id),
+  LOG_INFO("[CREATE_TENANT] STEP 2. finish create tenant", KR(ret), K(tenant_id),//2321ms
            "cost", ObTimeUtility::fast_current_time() - start_time);
   return ret;
 }
@@ -22703,7 +22757,8 @@ int ObDDLService::create_tenant_sys_ls(
     const ObTenantSchema &tenant_schema,
     const ObIArray<share::ObResourcePoolName> &pool_list,
     const bool create_ls_with_palf,
-    const palf::PalfBaseInfo &palf_base_info)
+    const palf::PalfBaseInfo &palf_base_info,
+    ObSArray<ObTableSchema> &tables)
 {
   const int64_t start_time = ObTimeUtility::fast_current_time();
   LOG_INFO("[CREATE_TENANT] STEP 2.1. start create sys log stream", K(tenant_schema));
@@ -22751,6 +22806,10 @@ int ObDDLService::create_tenant_sys_ls(
       if (INT64_MAX != THIS_WORKER.get_timeout_ts()) {
         timeout = max(timeout, THIS_WORKER.get_timeout_remain());
       }
+      if (OB_FAIL(ObSchemaUtils::construct_inner_table_schemas(tenant_id, tables))) {
+      LOG_WARN("fail to get inner table schemas in tenant space", KR(ret), K(tenant_id));
+    }
+      LOG_INFO("start to wait");
       int64_t wait_leader_start = ObTimeUtility::current_time();
       if (OB_FAIL(ls_leader_waiter.wait(tenant_id, SYS_LS, timeout))) {
         LOG_WARN("fail to wait election leader", KR(ret), K(tenant_id), K(SYS_LS), K(timeout));
@@ -22764,7 +22823,7 @@ int ObDDLService::create_tenant_sys_ls(
   } else {
     DEBUG_SYNC(AFTER_CREATE_USER_TENANT_SYS_LOGSTREAM);
   }
-  LOG_INFO("[CREATE_TENANT] STEP 2.1. finish create sys log stream", KR(ret), K(tenant_schema),
+  LOG_INFO("[CREATE_TENANT] STEP 2.1. finish create sys log stream", KR(ret), K(tenant_schema),//500ms
            "cost", ObTimeUtility::fast_current_time() - start_time, "wait leader", wait_leader);
   return ret;
 }
@@ -22836,6 +22895,9 @@ int ObDDLService::broadcast_sys_table_schemas(
         }
       } // end for
 
+      if (OB_FAIL(create_tenant_sys_tablets(tenant_id, tables))) {//258ms
+        LOG_WARN("fail to create tenant partitions", KR(ret), K(tenant_id));
+      }
       ObArray<int> return_code_array;
       int tmp_ret = OB_SUCCESS; // always wait all
       if (OB_SUCCESS != (tmp_ret = proxy.wait_all(return_code_array))) {
@@ -22854,7 +22916,7 @@ int ObDDLService::broadcast_sys_table_schemas(
       } // end for
     }
   }
-  LOG_INFO("[CREATE_TENANT] STEP 2.2. finish broadcast sys table schemas", KR(ret), K(tenant_id),
+  LOG_INFO("[CREATE_TENANT] STEP 2.2. finish broadcast sys table schemas", KR(ret), K(tenant_id),//150ms
            "cost", ObTimeUtility::fast_current_time() - start_time);
   return ret;
 }
@@ -22995,7 +23057,7 @@ int ObDDLService::create_tenant_sys_tablets(
       LOG_WARN("fail to finish new table tablet allocator", KR(tmp_ret));
     }
   }
-  LOG_INFO("[CREATE_TENANT] STEP 2.3. finish create sys table tablets", KR(ret), K(tenant_id),
+  LOG_INFO("[CREATE_TENANT] STEP 2.3. finish create sys table tablets", KR(ret), K(tenant_id),//258ms
            "cost", ObTimeUtility::fast_current_time() - start_time);
   return ret;
 }
@@ -23027,7 +23089,7 @@ int ObDDLService::init_tenant_schema(
     ret = OB_ERR_UNEXPECTED;
     LOG_WARN("ptr is null", KR(ret), KP_(sql_proxy), KP_(schema_service), KP(GCTX.lst_operator_));
   } else {
-      LOG_INFO("[CREATE_TENANT] init_tenant_schema_step1 start", K(tenant_id));
+      LOG_INFO("[CREATE_TENANT] init_tenant_schema_step1 start", KR(ret),K(tenant_id));//23015- 很小
     ObSchemaService *schema_service_impl = schema_service_->get_schema_service();
     // 1. init tenant global stat
     if (OB_SUCC(ret)) {
@@ -23050,7 +23112,7 @@ int ObDDLService::init_tenant_schema(
         }
       }
 
-      LOG_INFO("[CREATE_TENANT] init_tenant_schema_step2 start", K(tenant_id));
+      LOG_INFO("[CREATE_TENANT] init_tenant_schema_step2 start", KR(ret),K(tenant_id));//23030- 很小
       common::ObMySQLTransaction trans;
       if (OB_FAIL(ret)) {
       } else if (OB_FAIL(trans.start(sql_proxy_, tenant_id))) {
@@ -23080,7 +23142,7 @@ int ObDDLService::init_tenant_schema(
         }
       }
     }
-    LOG_INFO("[CREATE_TENANT] init_tenant_schema_step3 start", K(tenant_id));
+    LOG_INFO("[CREATE_TENANT] init_tenant_schema_step3 start", KR(ret),K(tenant_id));//23053- 3ms
     // 2. init tenant schema
     if (OB_SUCC(ret)) {
       ObDDLSQLTransaction trans(schema_service_, true, true, true, false);
@@ -23116,7 +23178,7 @@ int ObDDLService::init_tenant_schema(
       } else if (is_creating_standby && OB_FAIL(set_log_restore_source(gen_user_tenant_id(tenant_id), log_restore_source, trans))) {
         LOG_WARN("fail to set_log_restore_source", KR(ret), K(tenant_id), K(log_restore_source));
       }
-    LOG_INFO("[CREATE_TENANT] init_tenant_schema_step4 start", K(tenant_id));
+    LOG_INFO("[CREATE_TENANT] init_tenant_schema_step4 start", KR(ret),K(tenant_id));//23083- 1011ms
       if (trans.is_started()) {
         int temp_ret = OB_SUCCESS;
         bool commit = OB_SUCC(ret);
@@ -23155,7 +23217,7 @@ int ObDDLService::init_tenant_schema(
         LOG_WARN("fail to publish schema", KR(ret), K(tenant_id), K(addrs));
       }
     }
-    LOG_INFO("[CREATE_TENANT] init_tenant_schema_step5 start", K(tenant_id));
+    LOG_INFO("[CREATE_TENANT] init_tenant_schema_step5 start", KR(ret),K(tenant_id));//23119- 283ms
     // 3. set baseline schema version
     if (OB_SUCC(ret)) {
       ObGlobalStatProxy global_stat_proxy(*sql_proxy_, tenant_id);
@@ -23172,7 +23234,7 @@ int ObDDLService::init_tenant_schema(
     }
   }
 
-  LOG_INFO("[CREATE_TENANT] STEP 2.4. finish init tenant schemas", KR(ret), K(tenant_id),
+  LOG_INFO("[CREATE_TENANT] STEP 2.4. finish init tenant schemas", KR(ret), K(tenant_id),//1223ms
            "cost", ObTimeUtility::fast_current_time() - start_time);
   return ret;
 }
@@ -23221,7 +23283,7 @@ int ObDDLService::create_sys_table_schemas(
   } else {
 
   int64_t begin = 0;
-  int64_t batch_count = 16;
+  int64_t batch_count = 96;
   bool is_finish=false;
   int task_num=tables.count()/batch_count;
   if(tables.count()%batch_count!=0){
@@ -23229,7 +23291,7 @@ int ObDDLService::create_sys_table_schemas(
   }
 
   my1ThreadPool pool(is_finish,tables,task_num,*sql_proxy_,*schema_service_,tenant_id);
-  if(OB_FAIL(pool.init(8,1000,"create_schema"))) {
+  if(OB_FAIL(pool.init(4,50,"create_schema"))) {
     LOG_WARN("pool init failed", K(ret));
   }
   if(OB_FAIL(pool.start())){
@@ -23270,9 +23332,11 @@ int ObDDLService::create_sys_table_schemas(
       }*/
     }
     while(!is_finish){
-      ob_usleep(100);
+      ob_usleep(1000);
     }
+    int64_t begin_destroy = ObTimeUtility::current_time();
       pool.destroy();
+      LOG_INFO("end destroy cost",K(ret),"cost",ObTimeUtility::current_time() - begin_destroy);
 
   LOG_INFO("end create all schemas", K(ret), "table count", tables.count(),
       "time_used", ObTimeUtility::current_time() - begin_time);
@@ -35780,14 +35844,21 @@ void my1ThreadPool::run1(){
     if (OB_NOT_NULL(name_)) {
         lib::set_thread_name(name_);
     }
-    while (!has_set_stop() && !(OB_NOT_NULL(&lib::Thread::current()) ? lib::Thread::current().has_set_stop() : false)) {
+    int64_t wait_time=0;
+    while (!is_finish_&&!has_set_stop() && !(OB_NOT_NULL(&lib::Thread::current()) ? lib::Thread::current().has_set_stop() : false)) {
         void *task = NULL;
-        if (OB_SUCC(queue_.pop(task, QUEUE_WAIT_TIME))) {
+        if (OB_SUCC(queue_.pop(task, 1000))) {
             LOG_WARN("access task");
             LOG_WARN("task addr",K((int64_t)task));
             handle(task);
             ATOMIC_DEC(&task_nums_);
             LOG_WARN("task_nums_",K(task_nums_));
+	    wait_time=0;
+        }else {
+           if(wait_time>10){
+               break;
+           }
+           wait_time++;
         }
         if(ATOMIC_LOAD(&task_nums_)==0){
             is_finish_=true;
@@ -35801,6 +35872,7 @@ void my1ThreadPool::run1(){
             handle_drop(task);
         }
     }
+    LOG_WARN("thread quit");
 }
 void my1ThreadPool::handle(void *task){
     int ret = OB_SUCCESS;
@@ -35879,6 +35951,123 @@ int my1ThreadPool::batch_create_schema(const int64_t begin, const int64_t end)
     //BOOTSTRAP_CHECK_SUCCESS();
     return ret;
 }
+
+
+
+my2ThreadPool::~my2ThreadPool()
+{
+    if (is_inited_) {
+        destroy();
+    }
+}
+
+int my2ThreadPool::init(const int64_t thread_num, const int64_t task_num_limit, const char* name)
+{
+    int ret = OB_SUCCESS;
+    if (is_inited_) {
+        ret = OB_INIT_TWICE;
+    } else if (thread_num <= 0 || task_num_limit <= 0 || thread_num > MAX_THREAD_NUM || OB_ISNULL(name)) {
+        ret = OB_INVALID_ARGUMENT;
+    } else if (OB_FAIL(queue_.init(task_num_limit, name, MTL_ID()))) {
+        LOG_WARN("task queue init failed", K(ret), K(task_num_limit));
+    } else {
+        is_inited_ = true;
+        name_ = name;
+        total_thread_num_ = thread_num;
+        set_thread_count(thread_num);
+        set_run_wrapper(MTL_CTX());
+        set_thread_name(name,0);
+
+    }
+
+    if (OB_FAIL(ret)) {
+        destroy();
+    } else {
+        LOG_INFO("simple thread pool init success", KCSTRING(name), K(thread_num), K(task_num_limit));
+    }
+    return ret;
+}
+
+void my2ThreadPool::destroy()
+{
+    is_inited_ = false;
+    lib::ThreadPool::stop();
+    lib::ThreadPool::wait();
+    queue_.destroy();
+}
+
+int my2ThreadPool::push(void *task)
+{
+    int ret = OB_SUCCESS;
+    LOG_WARN("push");
+    if (!is_inited_) {
+        ret = OB_NOT_INIT;
+    } else if (NULL == task) {
+        ret = OB_INVALID_ARGUMENT;
+    } else if (has_set_stop()) {
+        ret = OB_IN_STOP_STATE;
+    } else {
+
+        ret = queue_.push(task);
+        LOG_WARN("task addr 2",K((int64_t)task));
+        LOG_WARN("push sucess");
+        if (OB_SIZE_OVERFLOW == ret) {
+            ret = OB_EAGAIN;
+        }
+    }
+    return ret;
+}
+void my2ThreadPool::run1(){
+    int ret = OB_SUCCESS;
+    if (OB_NOT_NULL(name_)) {
+        lib::set_thread_name(name_);
+    }
+    int64_t wait_time=0;
+    while (!is_finish_&&!has_set_stop() && !(OB_NOT_NULL(&lib::Thread::current()) ? lib::Thread::current().has_set_stop() : false)) {
+        void *task = NULL;
+        if (OB_SUCC(queue_.pop(task, 1000))) {
+            LOG_WARN("access task");
+            LOG_WARN("task addr",K((int64_t)task));
+            handle(task);
+            ATOMIC_DEC(&task_nums_);
+            LOG_WARN("task_nums_",K(task_nums_));
+	    wait_time=0;
+        }else {
+            if(wait_time>10){
+           	 break;
+            }
+            wait_time++;
+        }
+        if(ATOMIC_LOAD(&task_nums_)==0){
+        is_finish_=true;
+
+        }
+    }
+
+    if (has_set_stop()) {
+        void *task = NULL;
+        while (OB_SUCC(queue_.pop(task))) {
+            handle_drop(task);
+        }
+    }
+    LOG_WARN("thread quit");
+}
+void my2ThreadPool::handle(void *task1){
+    int ret = OB_SUCCESS;
+    auto *task=reinterpret_cast<CreateTenantTask *>(task1);
+    obDdlService_.create_normal_tenant(task->tenant_id_,
+        task->pool_list_,
+        task->tenant_schema_,
+        task->tenant_role_,
+        task->recovery_until_scn_,
+        task->sys_variable_,
+        task->create_ls_with_palf_,
+        task->palf_base_info_,
+        task->init_configs_,
+        task->is_creating_standby_,
+        task->log_restore_source_);
+}
+
 
 } // end namespace rootserver
 } // end namespace oceanbase

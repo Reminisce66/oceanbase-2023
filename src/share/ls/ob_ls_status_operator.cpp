@@ -1018,6 +1018,13 @@ int ObLSStatusOperator::get_ls_status_(const uint64_t tenant_id,
                                           client, member_list, status_info, arb_member, learner_list))) {
     LOG_WARN("fail to inner get ls status info", KR(ret), K(sql), K(tenant_id), "exec_tenant_id",
              get_exec_tenant_id(tenant_id), K(need_member_list));
+    /*if(ret!=OB_ENTRY_NOT_EXIST){
+        if (OB_FAIL(inner_get_ls_status_(sql, OB_SYS_TENANT_ID, need_member_list,
+                                         client, member_list, status_info, arb_member, learner_list))) {
+            LOG_WARN("fail to inner get ls status info", KR(ret), K(sql), K(tenant_id), "exec_tenant_id",
+                     get_exec_tenant_id(tenant_id), K(need_member_list));
+        }
+    }*/
   }
   return ret;
 }

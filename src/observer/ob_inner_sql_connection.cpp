@@ -831,6 +831,9 @@ int ObInnerSQLConnection::query(sqlclient::ObIExecutor &executor,
             LOG_WARN("execute failed", K(ret), K(tenant_id), K(executor), K(retry_cnt),
                 K(local_sys_schema_version), K(local_tenant_schema_version));
             ret = process_retry(res, ret, abs_timeout_us, need_retry, retry_cnt);//retry
+            if(ret_code==OB_TABLET_NOT_EXIST&&retry_cnt>2){
+                need_retry=false;
+            }
             // moved here from ObInnerSQLConnection::do_query() -> ObInnerSQLResult::open().
             int close_ret = res.force_close();
             if (OB_SUCCESS != close_ret) {
@@ -1902,7 +1905,7 @@ int ObInnerSQLConnection::set_timeout(int64_t &abs_timeout_us)
 
   if (OB_SUCC(ret)) {
     if (0 == abs_timeout_us) {
-      timeout = (user_timeout_ > 0 && user_timeout_<GCONF.internal_sql_execute_timeout) ? user_timeout_ : GCONF.internal_sql_execute_timeout;
+      timeout = (user_timeout_ > 0 ) ? user_timeout_ : GCONF.internal_sql_execute_timeout;
       trx_timeout = timeout;
       abs_timeout_us = now + timeout;
     }
