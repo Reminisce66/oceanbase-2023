@@ -1258,13 +1258,22 @@ int ObTableSqlService::add_columns_for_not_core(ObISQLClient &sql_client,
           }
         }
       }
+      if(enable_stash_query){
+          stash_desc->add_row_cnt(1);
+          stash_desc2->add_row_cnt(1);
+          if(stash_desc->get_row_cnt()>20){
+              trans->do_stash_query();
+              
+          }
+      }
+
     }
   }
   int64_t affected_rows = 0;
   if (OB_FAIL(ret)) {
   } else if (enable_stash_query) {
-    stash_desc->add_row_cnt(table.get_column_count());
-    stash_desc2->add_row_cnt(table.get_column_count());
+    //stash_desc->add_row_cnt(table.get_column_count());
+    //stash_desc2->add_row_cnt(table.get_column_count());
     if (OB_FAIL(trans->do_stash_query_batch())) {
       LOG_WARN("do_stash_query fail", K(ret));
     }
