@@ -1261,7 +1261,7 @@ int ObTableSqlService::add_columns_for_not_core(ObISQLClient &sql_client,
       if(enable_stash_query){
           stash_desc->add_row_cnt(1);
           stash_desc2->add_row_cnt(1);
-          if(stash_desc->get_row_cnt()>20){
+          if(stash_desc->get_row_cnt()>30){
               trans->do_stash_query();
               stash_desc->set_tenant_id(tenant_id);
               stash_desc2->set_tenant_id(tenant_id);
